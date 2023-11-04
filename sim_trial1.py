@@ -82,20 +82,23 @@ while running:
     for particle in np.append(particle_list, cursor):  # Include cursor position in our particle list
         if np.linalg.norm(particle.position - object.position) <= contact_distance:
             #checking all particles that are in contact with the object
-            # Particles push the object away from them, hence the negative sign
             collective_force = collective_force + (object.position - particle.position)
-            #if multiple particles are colliding with the object, their forces should act
-            #communitivly on the object
-            particle.force = (particle.position - object.position)
-    object.force=collective_force
+            
+            #the object should push back on the particles, done below
+            #particle.force = (particle.position - object.position) 
+            
+    #if multiple particles are colliding with the object, their forces should act
+    #communitivly on the object, so collective force is summed across all active particles in the space
+    # Particles push the object away from them, hence the negative sign
+    object.force=-1*collective_force
     
     
     # Apply the collective force to move the object
-    if np.linalg.norm(collective_force) > 0:
+    if np.linalg.norm(object.force) > 0:
         #unit vector in direction of collective force
-        force_direction=collective_force * (1 / np.linalg.norm(collective_force))
+        force_direction=object.force * (1 / np.linalg.norm(object.force))
         #making force magnitude of the particles 1/4 as effective, the particles are 1/4 the size of ght object
-        force_magnitude=(1/4) * collective_force
+        force_magnitude=(1/4) * object.force
         object.move_towards(force_direction, force_magnitude)
         #object.position = object.position + 1/4*(collective_force * (1 / np.linalg.norm(collective_force)))
 
