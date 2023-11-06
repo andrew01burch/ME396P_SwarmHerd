@@ -34,7 +34,7 @@ target_pos = np.array([5* WIDTH // 6, HEIGHT // 2])
 
 #making our particle object
 class particle:
-    def __init__(self, position, mass, raduis=5, velocity=[0,0], force=0, ):
+    def __init__(self, position, mass, raduis=5, velocity=np.array([0,0]), force=0, ):
         self.position=position
         self.force=force #the force acting on the particle
         self.radius=raduis
@@ -55,7 +55,9 @@ class particle:
         self.position=newPose
         
     def physics_move(self):
-        direction = self.velocity / np.linalg.norm(self.velocity)
+        self.position = self.position + self.velocity
+        #each timestep will be 1 unit of time
+        
         
         
         
@@ -103,32 +105,21 @@ while running:
     #communitivly on the object, so collective force is summed across all active particles in the space
     # Particles push the object away from them, hence the negative sign.
     #object.force gives us a 2 length list of the x and y components of force acting on our object
-    object.force=-1*collective_force
-    #use pythagorus to get the magnitide of that force
-    force_magnitude=math.sqrt(collective_force[0]**2 + collective_force[1]**2)
-    #get magnitude of velocity using intergral of f=ma
-    velocity_magnitude= math.sqrt(2 * force_magnitude / object.mass)
-    #now I need direction...
-    if not object.velocity ==[0,0]: #catches dividing by zero
-        velocity_direction = object.velocity * (1 / np.linalg.norm(object.velocity))
+    object.force=collective_force
     
-        
-    #now I need to update the velocity of my object. I need to scale velocity_direction up by velocity_magnitude, then add it to object.velocity
-    delta_velocity = velocity_magnitude * velocity_direction
-    #this SHOULD be my new object's velocity
-    object.velocity = object.velocity + delta_velocity
-    object.physics_move() #this function is a work in progress
     
-
-    
-    # # Apply the collective force to change velocity of object
-    # if np.linalg.norm(object.force) > 0:
-    #     #unit vector in direction of collective force
-    #     force_direction=object.force * (1 / np.linalg.norm(object.force))
-    #     #making force magnitude of the particles 1/4 as effective, the particles are 1/4 the size of ght object
-    #     force_magnitude=(1/4) * object.force
-    #     object.move_towards(force_direction, force_magnitude)
-    #     #object.position = object.position + 1/4*(collective_force * (1 / np.linalg.norm(collective_force)))
+    if np.linalg.norm(object.force) > 0:
+        #use pythagorus to get the magnitide of that force
+        force_magnitude=math.sqrt(collective_force[0]**2 + collective_force[1]**2)
+        #get magnitude of velocity using intergral of f=ma
+        velocity_magnitude= math.sqrt(2 * force_magnitude / object.mass)
+        #now I need direction.. well the direction in the change of velocity will be the same as the direction of the force being applied to the systm..
+        velocity_direction = object.force / np.linalg.norm(object.force)
+        #now I need to update the velocity of my object. I need to scale velocity_direction up by velocity_magnitude, then add it to object.velocity
+        delta_velocity = velocity_magnitude * velocity_direction
+        #this SHOULD be my new object's velocity
+        object.velocity = object.velocity + delta_velocity
+    object.physics_move()
 
 
     # Update particle positions (just random movement) -> Eventually controlled by TF
