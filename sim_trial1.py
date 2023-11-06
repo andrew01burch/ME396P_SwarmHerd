@@ -64,7 +64,7 @@ class particle:
     #maybe making a collide function here is a good idea, unsure as of now
 
 #this is the thing we want to move tword the goal
-object=particle(position=object_pos, raduis=object_radius, mass = 5)
+object=particle(position=object_pos, raduis=object_radius, mass = 500)
 
 #for now the cursor is treated like a particle so we can play around with physics, will remove later
 cursor=particle(position=np.array(pygame.mouse.get_pos()), mass = 1)
