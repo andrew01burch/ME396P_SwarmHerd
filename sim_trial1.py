@@ -1,5 +1,10 @@
 import pygame
 import numpy as np
+import math
+
+
+#change
+
 
 # Initialize pygame
 pygame.init()
@@ -29,11 +34,13 @@ target_pos = np.array([5* WIDTH // 6, HEIGHT // 2])
 
 #making our particle object
 class particle:
-    def __init__(self, position, raduis=5, velocity=0, force=0):
+    def __init__(self, position, mass, raduis=5, velocity=np.array([0,0]), force=0, ):
         self.position=position
         self.force=force #the force acting on the particle
         self.radius=raduis
         self.velocity = velocity
+        #velocity is 2 values [magnitude in x, magnitude in y]
+        self.mass=mass
     
     #making moveing a method of the particle object, takes in current position
     #point we want to move to, and speed we want to move tword it
@@ -47,19 +54,26 @@ class particle:
         newPose=self.position + direction * speed #add this to a particles position to update its location
         self.position=newPose
         
+    def physics_move(self):
+        self.position = self.position + self.velocity
+        #each timestep will be 1 unit of time
+        
+        
+        
+        
     #maybe making a collide function here is a good idea, unsure as of now
 
 #this is the thing we want to move tword the goal
-object=particle(position=object_pos, raduis=object_radius)
+object=particle(position=object_pos, raduis=object_radius, mass = 500)
 
 #for now the cursor is treated like a particle so we can play around with physics, will remove later
-cursor=particle(position=np.array(pygame.mouse.get_pos()))
+cursor=particle(position=np.array(pygame.mouse.get_pos()), mass = 1)
 
 #creating a list of 20 particle objects all with random initial positions
 particle_list=[]
 n_particles = 20
 for i in range (0,n_particles):
-    instence=particle(position=np.random.rand(2) * [WIDTH, HEIGHT])
+    instence=particle(position=np.random.rand(2) * [WIDTH, HEIGHT], mass = 1)
     particle_list.append(instence)
 
 
@@ -89,18 +103,23 @@ while running:
             
     #if multiple particles are colliding with the object, their forces should act
     #communitivly on the object, so collective force is summed across all active particles in the space
-    # Particles push the object away from them, hence the negative sign
-    object.force=-1*collective_force
+    # Particles push the object away from them, hence the negative sign.
+    #object.force gives us a 2 length list of the x and y components of force acting on our object
+    object.force=collective_force
     
     
-    # Apply the collective force to move the object
     if np.linalg.norm(object.force) > 0:
-        #unit vector in direction of collective force
-        force_direction=object.force * (1 / np.linalg.norm(object.force))
-        #making force magnitude of the particles 1/4 as effective, the particles are 1/4 the size of ght object
-        force_magnitude=(1/4) * object.force
-        object.move_towards(force_direction, force_magnitude)
-        #object.position = object.position + 1/4*(collective_force * (1 / np.linalg.norm(collective_force)))
+        #use pythagorus to get the magnitide of that force
+        force_magnitude=math.sqrt(collective_force[0]**2 + collective_force[1]**2)
+        #get magnitude of velocity using intergral of f=ma
+        velocity_magnitude= math.sqrt(2 * force_magnitude / object.mass)
+        #now I need direction.. well the direction in the change of velocity will be the same as the direction of the force being applied to the systm..
+        velocity_direction = object.force / np.linalg.norm(object.force)
+        #now I need to update the velocity of my object. I need to scale velocity_direction up by velocity_magnitude, then add it to object.velocity
+        delta_velocity = velocity_magnitude * velocity_direction
+        #this SHOULD be my new object's velocity
+        object.velocity = object.velocity + delta_velocity
+    object.physics_move()
 
 
     # Update particle positions (just random movement) -> Eventually controlled by TF
