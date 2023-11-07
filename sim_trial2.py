@@ -130,7 +130,7 @@ while running:
         #this SHOULD be my new object's velocity
         object.velocity = object.velocity + delta_velocity
 
-    # object.physics_move()
+    object.physics_move()
 
 
     # Update particle positions
