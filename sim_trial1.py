@@ -74,7 +74,7 @@ class particle:
             self.position[1] = np.clip(self.position[1], self.radius, HEIGHT - self.radius)
         
         # Update position with velocity
-        self.position = self.position + self.velocity
+        self.position += self.velocity
             
             
         #THIS IS WHERE CARL HAS LEFT OFF!! THE GOAL OF THIS IF STATEMENT IS TO PRODUCE THE VELOCITY
@@ -109,7 +109,7 @@ cursor=particle(position=np.array(pygame.mouse.get_pos()), mass = 1)
 particle_list=[]
 n_particles = 20
 for i in range (0,n_particles):
-    instence=particle(position=np.random.rand(2) * [WIDTH, HEIGHT], mass = 1)
+    instence=particle(position=np.random.rand(2) * [WIDTH, HEIGHT], mass = 10, velocity=np.random.rand(2))
     particle_list.append(instence)
 
 
@@ -136,9 +136,6 @@ while running:
         if np.linalg.norm(particle.position - object.position) <= contact_distance:
             #checking all particles that are in contact with the object
             collective_force = collective_force + (object.position - particle.position)
-            
-            #the object should push back on the particles, done below
-            particle.force = (particle.position - object.position) 
             
     #if multiple particles are colliding with the object, their forces should act
     #communitivly on the object, so collective force is summed across all active particles in the space
