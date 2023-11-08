@@ -2,10 +2,6 @@ import pygame
 import numpy as np
 import math
 
-
-#change
-
-
 # Initialize pygame
 pygame.init()
 
@@ -36,25 +32,25 @@ target_pos = np.array([5* WIDTH // 6, HEIGHT // 2])
 
 #making our particle object
 class particle:
-    def __init__(self, position, mass, friction_force = 0 raduis=5, velocity=np.array([0,0]), force=0 ):
+    def __init__(self, position, mass, friction_force = 0, radius=5, velocity=np.array([0,0]), force=0 ):
         self.position=position
         self.force=force #the force acting on the particle
-        self.radius=raduis
+        self.radius=radius
         self.velocity = velocity
         #velocity is 2 values [magnitude in x, magnitude in y]
         self.mass=mass
     
     #making moveing a method of the particle object, takes in current position
     #point we want to move to, and speed we want to move tword it
-    def move_towards(self, point2, speed):
-        """Move point1 towards point2 by a certain speed."""
-        direction = (point2 - self.position)
-        direction_norm = np.linalg.norm(direction)
-        if direction_norm == 0:  # To prevent division by zero
-            return self.position
-        direction = direction / direction_norm
-        newPose=self.position + direction * speed #add this to a particles position to update its location
-        self.position=newPose
+    # def move_towards(self, point2, speed):
+    #     """Move point1 towards point2 by a certain speed."""
+    #     direction = (point2 - self.position)
+    #     direction_norm = np.linalg.norm(direction)
+    #     if direction_norm == 0:  # To prevent division by zero
+    #         return self.position
+    #     direction = direction / direction_norm
+    #     newPose=self.position + direction * speed #add this to a particles position to update its location
+    #     self.position=newPose
         
     def physics_move(self):
         if not all(self.velocity) == 0: #meaning if the thing has a velocity
@@ -66,6 +62,19 @@ class particle:
             friction_force_magnitude=math.sqrt(self.friction_force[0]**2 + self.friction_force[1]**2)
             #this is the velocity term as a result of friction
             friction_velocity_magnitude= math.sqrt(2 * friction_force_magnitude / self.mass)
+
+        # Collision with left or right boundary
+        if self.position[0] - self.radius < 0 or self.position[0] + self.radius > WIDTH:
+            self.velocity[0] = -self.velocity[0]
+            self.position[0] = np.clip(self.position[0], self.radius, WIDTH - self.radius)
+
+        # Collision with top or bottom boundary
+        if self.position[1] - self.radius < 0 or self.position[1] + self.radius > HEIGHT:
+            self.velocity[1] = -self.velocity[1]
+            self.position[1] = np.clip(self.position[1], self.radius, HEIGHT - self.radius)
+        
+        # Update position with velocity
+        self.position = self.position + self.velocity
             
             
         #THIS IS WHERE CARL HAS LEFT OFF!! THE GOAL OF THIS IF STATEMENT IS TO PRODUCE THE VELOCITY
@@ -89,22 +98,9 @@ class particle:
             
         self.position = self.position + self.velocity
             #each timestep will be 1 unit of time
-    
         
-        
-        #THIS GOES UNUSED
-    # def friction_effect(self):
-    #     friction_direction = -1*self.velocity / np.linalg.norm(self.velocity)
-    #     friction_force = friction_cooificent*object.mass
-    #     object.force = object.force - friction_force
-        
-        
-        
-        
-    #maybe making a collide function here is a good idea, unsure as of now
-
 #this is the thing we want to move tword the goal
-object=particle(position=object_pos, raduis=object_radius, mass = 500)
+object=particle(position=object_pos, radius=object_radius, mass = 500)
 
 #for now the cursor is treated like a particle so we can play around with physics, will remove later
 cursor=particle(position=np.array(pygame.mouse.get_pos()), mass = 1)
@@ -121,6 +117,9 @@ for i in range (0,n_particles):
 running = True
 while running:
     screen.fill(WHITE)
+
+    # Draw border
+    pygame.draw.rect(screen, BLACK, (0, 0, WIDTH, HEIGHT), 2)  # Border thickness of 2 pixels
     
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -139,7 +138,7 @@ while running:
             collective_force = collective_force + (object.position - particle.position)
             
             #the object should push back on the particles, done below
-            #particle.force = (particle.position - object.position) 
+            particle.force = (particle.position - object.position) 
             
     #if multiple particles are colliding with the object, their forces should act
     #communitivly on the object, so collective force is summed across all active particles in the space
@@ -152,7 +151,7 @@ while running:
 
     # Update particle positions (just random movement) -> Eventually controlled by TF
     for particle in particle_list:
-        particle.move_towards(np.random.rand(2) * [WIDTH, HEIGHT], speed=1.0)
+        particle.physics_move()
 
     # Draw everything
     try:
