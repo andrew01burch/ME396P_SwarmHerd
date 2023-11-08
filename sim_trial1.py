@@ -69,7 +69,9 @@ class particle:
             
             
         #THIS IS WHERE CARL HAS LEFT OFF!! THE GOAL OF THIS IF STATEMENT IS TO PRODUCE THE VELOCITY
-        #VECTOR RESULTING FROM FRICTION THAT APPOSES THE PARTICLES CURRENT DIRECTION OF MOTION
+        #VECTOR RESULTING FROM FRICTION THAT APPOSES THE PARTICLES CURRENT DIRECTION OF MOTION.
+        #THEN, SUBTRACT THE FRICTION VELOCITY VECTOR FROM THE PARTICLES CURRENT VELOCITY TO GET THE 
+        #NEW CURRENT VELOCITY
         
         
         #now we calculate external forces acting from particles hitting the current particle
@@ -89,10 +91,12 @@ class particle:
             #each timestep will be 1 unit of time
     
         
-    def friction_effect(self):
-        friction_direction = -1*self.velocity / np.linalg.norm(self.velocity)
-        friction_force = friction_cooificent*object.mass
-        object.force = object.force - friction_force
+        
+        #THIS GOES UNUSED
+    # def friction_effect(self):
+    #     friction_direction = -1*self.velocity / np.linalg.norm(self.velocity)
+    #     friction_force = friction_cooificent*object.mass
+    #     object.force = object.force - friction_force
         
         
         
