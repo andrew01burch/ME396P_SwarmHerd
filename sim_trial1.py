@@ -16,6 +16,8 @@ GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 BLACK = (0, 0, 0)
 
+friction_cooificent = .5
+
 # Screen dimensions
 WIDTH, HEIGHT = 800, 600
 
@@ -34,7 +36,7 @@ target_pos = np.array([5* WIDTH // 6, HEIGHT // 2])
 
 #making our particle object
 class particle:
-    def __init__(self, position, mass, raduis=5, velocity=np.array([0,0]), force=0, ):
+    def __init__(self, position, mass, friction_force = 0 raduis=5, velocity=np.array([0,0]), force=0 ):
         self.position=position
         self.force=force #the force acting on the particle
         self.radius=raduis
@@ -55,8 +57,42 @@ class particle:
         self.position=newPose
         
     def physics_move(self):
+        if not all(self.velocity) == 0: #meaning if the thing has a velocity
+            #friction force should be pointing in the inverse direction of velocity
+            friction_direction = -1 * self.velocity / np.linalg.norm(self.velocity)
+            #multiply the unit vector direction of friction force by the magnitude 
+            self.friction_force = friction_cooificent*self.mass*friction_direction
+            #getting the magnitude of friction force
+            friction_force_magnitude=math.sqrt(self.friction_force[0]**2 + self.friction_force[1]**2)
+            #this is the velocity term as a result of friction
+            friction_velocity_magnitude= math.sqrt(2 * friction_force_magnitude / self.mass)
+            
+            
+        #THIS IS WHERE CARL HAS LEFT OFF!! THE GOAL OF THIS IF STATEMENT IS TO PRODUCE THE VELOCITY
+        #VECTOR RESULTING FROM FRICTION THAT APPOSES THE PARTICLES CURRENT DIRECTION OF MOTION
+        
+        
+        #now we calculate external forces acting from particles hitting the current particle
+        if np.linalg.norm(self.force) > 0:
+            #use pythagorus to get the magnitide of that force
+            force_magnitude=math.sqrt(self.force[0]**2 + self.force[1]**2)
+            #get magnitude of velocity using intergral of f=ma
+            velocity_magnitude= math.sqrt(2 * force_magnitude / self.mass)
+            #now I need direction.. well the direction in the change of velocity will be the same as the direction of the force being applied to the systm..
+            velocity_direction = self.force / np.linalg.norm(self.force)
+            #now I need to update the velocity of my object. I need to scale velocity_direction up by velocity_magnitude, then add it to object.velocity
+            delta_velocity = velocity_magnitude * velocity_direction
+            #this SHOULD be my new object's velocity
+            self.velocity = self.velocity + delta_velocity
+            
         self.position = self.position + self.velocity
-        #each timestep will be 1 unit of time
+            #each timestep will be 1 unit of time
+    
+        
+    def friction_effect(self):
+        friction_direction = -1*self.velocity / np.linalg.norm(self.velocity)
+        friction_force = friction_cooificent*object.mass
+        object.force = object.force - friction_force
         
         
         
@@ -107,18 +143,6 @@ while running:
     #object.force gives us a 2 length list of the x and y components of force acting on our object
     object.force=collective_force
     
-    
-    if np.linalg.norm(object.force) > 0:
-        #use pythagorus to get the magnitide of that force
-        force_magnitude=math.sqrt(collective_force[0]**2 + collective_force[1]**2)
-        #get magnitude of velocity using intergral of f=ma
-        velocity_magnitude= math.sqrt(2 * force_magnitude / object.mass)
-        #now I need direction.. well the direction in the change of velocity will be the same as the direction of the force being applied to the systm..
-        velocity_direction = object.force / np.linalg.norm(object.force)
-        #now I need to update the velocity of my object. I need to scale velocity_direction up by velocity_magnitude, then add it to object.velocity
-        delta_velocity = velocity_magnitude * velocity_direction
-        #this SHOULD be my new object's velocity
-        object.velocity = object.velocity + delta_velocity
     object.physics_move()
 
 
