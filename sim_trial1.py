@@ -28,6 +28,7 @@ clock = pygame.time.Clock()
 object_radius = 15
 target_radius = 10
 contact_distance = object_radius
+friction_coefficent = -.05
 
 object_pos = np.array([WIDTH // 2, HEIGHT // 2], dtype=float)
 target_pos = np.array([5* WIDTH // 6, HEIGHT // 2])
@@ -55,8 +56,29 @@ class particle:
         self.position=newPose
         
     def physics_move(self):
+        # Collision with left or right boundary
+        if self.position[0] - self.radius < 0 or self.position[0] + self.radius > WIDTH:
+            self.velocity[0] = -self.velocity[0]
+            self.position[0] = np.clip(self.position[0], self.radius, WIDTH - self.radius)
+        # Collision with top or bottom boundary
+        if self.position[1] - self.radius < 0 or self.position[1] + self.radius > HEIGHT:
+            self.velocity[1] = -self.velocity[1]
+            self.position[1] = np.clip(self.position[1], self.radius, HEIGHT - self.radius)
+            
+        # Calculate acceleration from force
+        acceleration = self.force / self.mass
+
+        # Update velocity with acceleration
+        self.velocity = self.velocity + acceleration
+
+        # Apply friction to the velocity
+        self.velocity = self.velocity +  friction_coefficent * self.velocity
+
+        if np.linalg.norm(self.velocity) < 0.05:
+            self.velocity = np.zeros_like(self.velocity)
+
+        # Update position with velocity
         self.position = self.position + self.velocity
-        #each timestep will be 1 unit of time
         
         
         
