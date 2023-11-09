@@ -62,7 +62,7 @@ def handle_collisions(particles, restitution_coefficient=1):
                     particle2.velocity += (impulse * particle1.mass) * collision_direction
 
 
-#making our particle object
+# making our particle object
 class particle:
     def __init__(self, mass=1.0, position=np.array([0.0, 0.0]), radius=5.0, velocity=np.array([0.0, 0.0]), force=np.array([0.0, 0.0])):
         self.position = position.astype(float)
@@ -96,13 +96,13 @@ class particle:
         # Update position with velocity
         self.position += self.velocity
         
-#this is the thing we want to move tword the goal
+# this is the thing we want to move tword the goal
 object=particle(position=object_pos, radius=object_radius, mass = 50)
 
-#for now the cursor is treated like a particle so we can play around with physics, will remove later
+# for now the cursor is treated like a particle so we can play around with physics, will remove later
 cursor=particle(position=np.array(pygame.mouse.get_pos()), mass = 10)
 
-#creating a list of 20 particle objects all with random initial positions
+# creating a list of 20 particle objects all with random initial positions
 particle_list=[]
 n_particles = 20
 for i in range (0,n_particles):
