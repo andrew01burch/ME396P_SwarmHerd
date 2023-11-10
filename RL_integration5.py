@@ -278,6 +278,9 @@ batch_size = 32
 # Initialize last chosen action
 last_action = np.zeros(action_size)
 
+# Define the maximum duration for a successful run (in milliseconds)
+max_duration = 10000  # 10 seconds in milliseconds
+
 # Initialize previous_distance_to_target
 previous_distance_to_target = np.linalg.norm(object_pos - target_pos)
 
