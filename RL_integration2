@@ -34,7 +34,7 @@ object_pos = np.array([WIDTH // 2, HEIGHT // 2], dtype=float)
 target_pos = np.array([WIDTH // 2, HEIGHT //4])
 
 # Hyperparameters
-n_particles = 20
+n_particles = 10
 friction_coefficient = -0.01
 state_size = n_particles * 4 + 4  # position and velocity for each particle + object position and velocity + target position
 action_size = n_particles * 2  # 2D force vector for each particle
@@ -42,11 +42,12 @@ learning_rate = 0.001
 gamma = 0.99  # Discount factor for future rewards
 action_selection_frequency = 2  # Number of frames to wait before selecting a new action
 frame_counter = 0  # Counter to keep track of frames
+collision_occurred = False
 
 
 # Define the neural network for RL
 model = Sequential([
-    Dense(64, activation='relu', input_shape=(86,)),
+    Dense(64, activation='relu', input_shape=(46,)),
     Dense(64, activation='relu'),
     Dense(action_size, activation='tanh')  # Force vector in range [-1, 1]
 ])
@@ -111,12 +112,15 @@ class particle:
 
 # Collision handling function
 def handle_collisions(particles, restitution_coefficient=1):
+    global collision_occurred
+    collision_detected = False
     n = len(particles)
     for i in range(n):
         for j in range(i + 1, n):
             particle1, particle2 = particles[i], particles[j]
             distance_vector = particle1.position - particle2.position
             distance = np.linalg.norm(distance_vector).astype(float)
+            
             if distance < (particle1.radius + particle2.radius):
                 # Normalize distance_vector to get collision direction
                 collision_direction = (distance_vector / distance)
@@ -142,7 +146,8 @@ def handle_collisions(particles, restitution_coefficient=1):
                     impulse = velocity_along_collision * collision_direction * mass_factor
                     particle1.velocity += impulse * particle2.mass
                     particle2.velocity -= impulse * particle1.mass
-                    
+        if collision_detected:
+            collision_occurred = True           
 
 class ReplayBuffer:
     def __init__(self, capacity=10000):
@@ -207,11 +212,10 @@ while running:
         action = model.predict(current_state.reshape(1, -1)).flatten()
         
         last_action = action
-    else:
-        action = last_action
+    
 
         # Apply actions to particles
-        apply_actions(action, particle_list)
+        apply_actions(last_action, particle_list)
 
     # Update frame counter
     frame_counter += 1
@@ -234,7 +238,10 @@ while running:
     replay_buffer.add(current_state, action, reward, next_state, done)
 
     # Train the model
-    train_model(model, replay_buffer, batch_size, gamma)
+    if collision_occurred:
+        train_model(model, replay_buffer, batch_size, gamma)
+        collision_occurred = False  
+
 
 
     # Clear the screen and render the simulation
@@ -247,6 +254,6 @@ while running:
         pygame.draw.circle(screen, RED, center=(particle.position[0], particle.position[1]), radius=particle.radius)
     
     pygame.display.flip()
-    clock.tick(60)
+    clock.tick(30)
 
 pygame.quit()
