@@ -7,9 +7,6 @@ from tensorflow.keras.optimizers import Adam
 from collections import deque
 import random
 
-# Initialize pygame
-pygame.init()
-
 # Suppress TensorFlow INFO and WARNING messages
 tf.get_logger().setLevel('ERROR')
 
@@ -23,9 +20,11 @@ BLACK = (0, 0, 0)
 # Screen dimensions
 WIDTH, HEIGHT = 800, 600
 
+# Initialize pygame
+pygame.init()
 # Create the screen and clock objects
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption('Simulation Evironment v2.0')
+pygame.display.set_caption('Simulation Interation: 0')
 clock = pygame.time.Clock()
 
 # Object and target settings
@@ -213,7 +212,22 @@ def handle_collisions(particles, object, restitution_coefficient=1):
                 particle.velocity -= (impulse * object.mass) * collision_direction
                 object.velocity += (impulse * particle.mass) * collision_direction
 
-def reset_simulation(particle_list, object, object_pos, target_pos):
+def reset_simulation(particle_list, object, object_pos, target_pos, sim_iter):
+    pygame.quit()
+    
+    # Initialize pygame
+    pygame.init()
+    # Create the screen and clock objects
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    pygame.display.set_caption(f'Simulation Iteration: {sim_iter}')
+    sim_iter += 1
+    clock = pygame.time.Clock()
+
+    start_time = pygame.time.get_ticks()
+    frame_counter = 0
+
+    running = True
+    
     object.position = object_pos
     object.velocity = [0,0]
     for particle in particle_list:
@@ -290,12 +304,8 @@ previous_particle_distances = [np.linalg.norm(p.position - object.position) for 
 # Main simulation loop
 running = True
 start_time = pygame.time.get_ticks()
+sim_iter = 1
 while running:
-    
-    # Process input/events
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
 
     # Handle collisions and move particles
     handle_collisions(particle_list, object)
@@ -401,7 +411,7 @@ while running:
         #Train model with accumulated experiences
         train_model(model, replay_buffer, batch_size, gamma)
         #Reset for new session
-        reset_simulation(particle_list, object, object_pos, target_pos)
-        start_time = pygame.time.get_ticks()
-        frame_counter = 0
+        reset_simulation(particle_list, object, object_pos, target_pos, sim_iter)
+        
+
 pygame.quit()
