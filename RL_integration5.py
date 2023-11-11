@@ -38,10 +38,9 @@ epsilon = 1.0  # Exploration rate
 epsilon_min = 0.01  # Minimum exploration probability
 epsilon_decay = 0.995  # Exponential decay rate for exploration prob
 
-
 # Hyperparameters
 n_particles = 5
-friction_coefficient = 0
+friction_coefficient = -0.05
 state_size = n_particles * 4 + 4  # position and velocity for each particle + object position and velocity + target position
 action_size = n_particles * 2  # 2D force vector for each particle
 learning_rate = 0.001
@@ -50,7 +49,6 @@ action_selection_frequency = 2  # Number of frames to wait before selecting a ne
 frame_counter = 0  # Counter to keep track of frames
 collision_occurred = False
 initial_force_magnitude = 10.0  # Adjust the magnitude of the initial force as needed
-
 
 # Define the neural network for RL
 model = Sequential([
@@ -109,8 +107,6 @@ def calculate_reward(particle_list, object, target_pos, start_time, current_time
     reward -= wall_collision_penalty
 
     return reward, distance_to_target
-
-
 
 # Class definition for particles
 class particle:
@@ -242,12 +238,10 @@ def train_model(model, replay_buffer, batch_size, gamma):
     for state, action, reward, next_state, done in minibatch:
         target = reward
         if not done:
-            target = (reward + gamma * np.amax(model.predict(next_state.reshape(1, -1))[0]))
-        target_f = model.predict(state.reshape(1, -1))
+            target = (reward + gamma * np.amax(model.predict(next_state.reshape(1, -1), verbose = 0)[0]))
+        target_f = model.predict(state.reshape(1, -1), verbose = 0)
         target_f[0][np.argmax(action)] = target
-        model.fit(state.reshape(1, -1), target_f, epochs=1, verbose=0)
-
-
+        model.fit(state.reshape(1, -1), target_f, epochs=1)
 
 # Initialize particle list and object
 # Initialize particle list with initial force towards the object
@@ -266,6 +260,7 @@ for _ in range(n_particles):
     # Create particle with initial force
     new_particle = particle(mass=10, position=position, velocity=np.random.rand(2), force=initial_force)
     particle_list.append(new_particle)
+
 object = particle(position=object_pos, radius=object_radius, mass=5)
 
 collision_occurred_with_object = False
@@ -307,7 +302,7 @@ while running:
             action = np.random.randn(n_particles * 2)  # Random values for each force dimension
         else:
             # Predict force magnitude based on model for exploitation
-            action = model.predict(current_state.reshape(1, -1)).flatten()
+            action = model.predict(current_state.reshape(1, -1), verbose = 0).flatten()
 
         # Decay the epsilon value
         epsilon = max(epsilon_min, epsilon_decay * epsilon)
@@ -353,6 +348,7 @@ while running:
             running = False  # Stop the simulation
         else:
             reset_simulation(particle_list, object, object_pos, target_pos)
+            print('--- Simulation Reset ---')
             start_time = pygame.time.get_ticks()  # Reset the timer for the next run
 
     # Calculate the current distance to target
@@ -394,6 +390,6 @@ while running:
         pygame.draw.circle(screen, RED, center=(particle.position[0], particle.position[1]), radius=particle.radius)
     
     pygame.display.flip()
-    clock.tick(30)
+    # clock.tick(120)
 
 pygame.quit()
