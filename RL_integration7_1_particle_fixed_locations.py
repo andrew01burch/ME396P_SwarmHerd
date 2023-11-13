@@ -6,6 +6,8 @@ from tensorflow.keras.layers import Dense
 from tensorflow.keras.optimizers import Adam
 from collections import deque
 import random
+from auxFunctionsAndObjects import handle_collisions
+from auxFunctionsAndObjects import particle
 
 # Suppress TensorFlow INFO and WARNING messages
 tf.get_logger().setLevel('ERROR')
@@ -53,6 +55,9 @@ frame_counter = 0  # Counter to keep track of frames
 collision_occurred = False
 initial_force_magnitude = 10.0  # Adjust the magnitude of the initial force as needed
 
+
+
+
 # Define the neural network for RL
 model = Sequential([
     Dense(64, activation='relu', input_shape=(state_size,)),
@@ -84,143 +89,7 @@ def apply_actions(actions, particle_list, object):
         particle.force = direction * force_magnitude
 
 # Reward function emphasizing time and total movement
-def calculate_reward(particle_list, object, target_pos, start_time, current_time, collision_with_object, collision_between_particles, previous_particle_distances, current_particle_distances, previous_distance_to_target):
-    # Base components
-    time_penalty = current_time - start_time
-    #movement_penalty = sum(np.linalg.norm(p.velocity) for p in particle_list)
-    #reward = -time_penalty 
 
-    # Current distance to target
-    distance_to_target = np.linalg.norm(object.position - target_pos)
-
-    #reward for decreacing the distance to the target
-    delta_distance_to_target = previous_distance_to_target - distance_to_target
-
-    previous_distance_to_target = distance_to_target
-
-    #if delta_distance_to_target is negative, we are closer to the target and want to reward our model
-    reward = -(delta_distance_to_target)*100
-
-    # Collision rewards
-    if collision_with_object:
-        reward =reward+ 200  # Reward for colliding with the object
-    if collision_between_particles:
-        reward -= 20  # Penalty for particle-particle collision
-
-    # Reward for moving towards the object
-    for prev_dist, curr_dist in zip(previous_particle_distances, current_particle_distances):
-        distance_delta = prev_dist - curr_dist
-        if distance_delta > 0:
-            reward += 10 * distance_delta  # Scale reward based on improvement
-        if distance_delta < 0:
-            reward -= 10 * distance_delta #give negative reward for moving away from the object
-
-    # Penalty for wall collisions
-    wall_collision_penalty = sum(25 for p in particle_list if p.hit_wall)
-    reward -= wall_collision_penalty
-    print(reward)
-    return reward, distance_to_target
-
-# Class definition for particles
-class particle:
-    def __init__(self, mass=1.0, position=np.array([0.0, 0.0]), radius=5.0, velocity=np.array([0.0, 0.0]), force=np.array([0.0, 0.0])):
-        self.position = position.astype(float)
-        self.force = force.astype(float)
-        self.radius = float(radius)
-        self.velocity = velocity.astype(float)
-        self.mass = float(mass)
-        self.hit_wall = False
-        
-    def physics_move(self):
-        self.hit_wall = False
-        # Collision with boundaries and physics updates...
-        # Collision with left or right boundary
-        if self.position[0] - self.radius < 0 or self.position[0] + self.radius > WIDTH:
-            self.velocity[0] = -self.velocity[0]
-            self.position[0] = np.clip(self.position[0], self.radius, WIDTH - self.radius)
-            self.hit_wall = True
-        if self.position[1] - self.radius < 0 or self.position[1] + self.radius > HEIGHT:
-            self.velocity[1] = -self.velocity[1]
-            self.position[1] = np.clip(self.position[1], self.radius, HEIGHT - self.radius)
-            self.hit_wall = True
-            
-        # Calculate acceleration from force
-        acceleration = self.force / self.mass
-
-        # Update velocity with acceleration
-        self.velocity += acceleration
-
-        # Apply friction to the velocity
-        self.velocity += friction_coefficient * self.velocity
-
-        if np.linalg.norm(self.velocity) < 0.05:
-            self.velocity = np.zeros_like(self.velocity)
-
-        # Update position with velocity
-        self.position = self.position +  self.velocity
-
-# Helper function to check if a collision occurs between two objects
-def is_collision(particle1, particle2):
-    distance = np.linalg.norm(particle1.position - particle2.position)
-    return distance < (particle1.radius + particle2.radius)
-
-
-def handle_collisions(particles, object, restitution_coefficient=1):
-    global collision_occurred_with_object,  collision_occurred_between_particles
-    collision_occurred_with_object = False
-    collision_occurred_between_particles = False
-
-    n = len(particles)
-
-    # Check for collisions among particles
-    for i in range(n):
-        for j in range(i + 1, n):
-            if is_collision(particles[i], particles[j]):
-                collision_occurred_between_particles = True
-            particle1, particle2 = particles[i], particles[j]
-            if is_collision(particle1, particle2):
-                # Normalize distance_vector to get collision direction
-                distance_vector = particle1.position - particle2.position
-                collision_direction = distance_vector / np.linalg.norm(distance_vector)
-                total_mass = particle1.mass + particle2.mass
-
-                # Calculate overlap
-                overlap = (particle1.radius + particle2.radius) - np.linalg.norm(distance_vector)
-                particle1.position += (overlap * (particle2.mass / total_mass)) * collision_direction
-                particle2.position -= (overlap * (particle1.mass / total_mass)) * collision_direction
-
-                # Calculate relative velocity
-                relative_velocity = particle1.velocity - particle2.velocity
-                velocity_along_collision = np.dot(relative_velocity, collision_direction)
-
-                # Only proceed to update velocities if particles are moving towards each other
-                if velocity_along_collision > 0:
-                    # Apply the collision impulse
-                    impulse = (2 * velocity_along_collision / total_mass) * restitution_coefficient
-                    particle1.velocity -= (impulse * particle2.mass) * collision_direction
-                    particle2.velocity += (impulse * particle1.mass) * collision_direction
-
-    # Check for collisions between particles and the object
-    for particle in particles:
-        if is_collision(particle, object):
-            collision_occurred_with_object = True
-
-            # Collision handling between particle and object
-            distance_vector = particle.position - object.position
-            collision_direction = distance_vector / np.linalg.norm(distance_vector)
-            total_mass = particle.mass + object.mass
-
-            overlap = (particle.radius + object.radius) - np.linalg.norm(distance_vector)
-            particle.position += (overlap * (object.mass / total_mass)) * collision_direction
-            object.position -= (overlap * (particle.mass / total_mass)) * collision_direction
-
-            relative_velocity = particle.velocity - object.velocity
-            velocity_along_collision = np.dot(relative_velocity, collision_direction)
-
-            if velocity_along_collision > 0:
-                impulse = (2 * velocity_along_collision / total_mass) * restitution_coefficient
-                particle.velocity -= (impulse * object.mass) * collision_direction
-                object.velocity += (impulse * particle.mass) * collision_direction
 
 def reset_simulation(particle_list, object, sim_iter):
     #lets try having the object start in the same spot every time
@@ -306,13 +175,41 @@ max_success_duration = 15000  # 15 seconds in milliseconds
 # Initialize previous_distance_to_target
 previous_distance_to_target = np.linalg.norm(object_pos - target_pos)
 
-# Initialize previous_particle_distances
-previous_particle_distances = [np.linalg.norm(p.position - object.position) for p in particle_list]
+# Initialize previous_particle_distances from the object
+#previous_particle_distances = [np.linalg.norm(p.position - object.position) for p in particle_list]
+def calculate_reward(particle_list, object, target_pos, start_time, current_time, collision_occurred_with_object, collision_occurred_between_particles, particle_distances_to_object, previous_distance_to_target):
+    # Base components
+    time_penalty = current_time - start_time
+    #movement_penalty = sum(np.linalg.norm(p.velocity) for p in particle_list)
+    #reward = -time_penalty 
+
+    # Current distance between object and target
+    distance_from_object_to_target = np.linalg.norm(object.position - target_pos)
+    #change in disctnace between object and target
+    delta_distance_to_target = previous_distance_to_target - distance_from_object_to_target
+    #setting the new distance as the old distance to recalculate for the next loop
+    previous_distance_to_target = distance_from_object_to_target
+
+    #if delta_distance_to_target is negative, we are closer to the target and want to reward our model
+    reward = -(delta_distance_to_target)*100
+
+    #removed collision reward with obect to simplify
+
+    # Reward for moving towards the object
+    # for prev_dist, curr_dist in zip(previous_particle_distances, current_particle_distances):
+    #      distance_delta = prev_dist - curr_dist
+
+    # Penalty for wall collisions, removed for simplification
+
+    print(reward)
+    return reward, distance_from_object_to_target
+
 
 # Main simulation loop
 running = True
 start_time = pygame.time.get_ticks()
 sim_iter = 1
+particle_distances_to_object=[]
 while running:
 
     # Clear the screen and render the simulation
@@ -344,29 +241,26 @@ while running:
     # Apply actions to particles
     apply_actions(last_action, particle_list, object)
 
-    # Update frame counter
-    frame_counter += 1
 
     # Update physics of particles and object
     for particle in particle_list:
         particle.physics_move()
     object.physics_move()
 
-    # Check for wall collisions
-    wall_collision = any(p.hit_wall for p in particle_list)
-
-    # Calculate the current distances of particles to the object
-    current_particle_distances = [np.linalg.norm(p.position - object.position) for p in particle_list]
+    # keeping track of all of the distances between the object and the particles for each frame, I will
+    #use this to calculate the change in distance between the particles and the object in order to reward/punish
+    #my model accordingly.
+    #CHANGED FROM ITERATING THROUGH ALL PARTICLES TO JUST THE FIRST PARTICLE IN PARTICLE_LIST BECASUE IN THIS
+    #SCRIPT THERE IS ONLY 1 PARTICLE
+    particle_distances_to_object.append(np.linalg.norm(particle_list[0].position - object.position))
 
     # After updating the physics of particles and object
     next_state = get_state(particle_list, object, target_pos)
 
-    # Calculate the current distance to target
-    current_distance_to_target = np.linalg.norm(object.position - target_pos)
 
     # Calculate reward
     current_time = pygame.time.get_ticks()
-    reward, current_distance_to_target = calculate_reward(
+    reward= calculate_reward(
         particle_list, 
         object, 
         target_pos, 
@@ -374,12 +268,11 @@ while running:
         current_time, 
         collision_occurred_with_object, 
         collision_occurred_between_particles,
-        previous_particle_distances,
-        current_particle_distances,
+        particle_distances_to_object,
         previous_distance_to_target
     )
     # Update previous_particle_distances for the next iteration
-    previous_particle_distances = current_particle_distances
+    #no longer needed becasue we are saving particledistances as a list
     
     
     pygame.draw.rect(screen, BLACK, (0, 0, WIDTH, HEIGHT), 2)
@@ -389,6 +282,8 @@ while running:
     for particle in particle_list:
         pygame.draw.circle(screen, RED, center=(particle.position[0], particle.position[1]), radius=particle.radius)
     
+    # Update frame counter, lets do this RIGHT before we swap frames
+    frame_counter += 1
     pygame.display.flip()
     clock.tick(120) #doubled to make sim run faster hopefully
 
