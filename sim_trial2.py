@@ -28,7 +28,8 @@ target_radius = 10
 contact_distance = object_radius
 
 object_pos = np.array([WIDTH // 2, HEIGHT // 2], dtype=float)
-target_pos = np.array([5* WIDTH // 6, HEIGHT // 2])
+# target_pos = np.array([5* WIDTH // 6, HEIGHT // 2])
+target_pos = np.array([WIDTH, HEIGHT])
 
 def handle_collisions(particles, restitution_coefficient=1):
     n = len(particles)
@@ -38,28 +39,30 @@ def handle_collisions(particles, restitution_coefficient=1):
             distance_vector = particle1.position - particle2.position
             distance = np.linalg.norm(distance_vector).astype(float)
             if distance < (particle1.radius + particle2.radius):
-                # Calculate overlap
-                overlap = float((particle1.radius + particle2.radius) - distance)
-
                 # Normalize distance_vector to get collision direction
                 collision_direction = (distance_vector / distance)
-
-                # Move particles away based on their mass (heavier moves less)
                 total_mass = float(particle1.mass + particle2.mass)
+               
+                overlap = float((particle1.radius + particle2.radius) - distance)
                 particle1.position += (overlap * (particle2.mass / total_mass)) * collision_direction
                 particle2.position -= (overlap * (particle1.mass / total_mass)) * collision_direction
 
                 # Calculate relative velocity
-                relative_velocity = particle1.velocity - particle2.velocity
+                if distance_vector[0] > 0 or distance_vector[0] > 0:
+                    relative_velocity = particle2.velocity - particle1.velocity
+                else:
+                    relative_velocity = particle1.velocity - particle2.velocity
+
                 # Calculate velocity along the direction of collision
                 velocity_along_collision = np.dot(relative_velocity, collision_direction)
                 
                 # Only proceed to update velocities if particles are moving towards each other
                 if velocity_along_collision > 0:
                     # Apply the collision impulse
-                    impulse = (2 * velocity_along_collision / total_mass) * restitution_coefficient
-                    particle1.velocity -= (impulse * particle2.mass) * collision_direction
-                    particle2.velocity += (impulse * particle1.mass) * collision_direction
+                    mass_factor = (2 * restitution_coefficient) / total_mass
+                    impulse = velocity_along_collision * collision_direction * mass_factor
+                    particle1.velocity += impulse * particle2.mass
+                    particle2.velocity -= impulse * particle1.mass
 
 
 # making our particle object
@@ -70,27 +73,6 @@ class particle:
         self.radius = float(radius)
         self.velocity = velocity.astype(float)  # make sure velocity is float
         self.mass = float(mass)
-    
-    
-    def collide(self, other_particle restitution_coefficient=1): #goal is to for the particles to do 
-        distance_vector = self.position - other_particle.position
-        distance = np.linalg.norm(distance_vector).astype(float)
-        
-         # Calculate overlap
-        overlap = float((self.radius + other_particle.radius) - distance)
-
-        # Normalize distance_vector to get collision direction
-        collision_direction = (distance_vector / distance)
-
-        # Move particles away based on their mass (heavier moves less)
-        total_mass = float(self.mass + other_particle.mass)
-        particle1.position += (overlap * (particle2.mass / total_mass)) * collision_direction
-        particle2.position -= (overlap * (particle1.mass / total_mass)) * collision_direction
-
-        # Calculate relative velocity
-        relative_velocity = particle1.velocity - particle2.velocity
-        # Calculate velocity along the direction of collision
-        velocity_along_collision = np.dot(relative_velocity, collision_direction)
         
     def physics_move(self):
         # Collision with left or right boundary
@@ -144,22 +126,9 @@ while running:
 
     # updating the cursor particles position
     cursor.position=np.array(pygame.mouse.get_pos(), dtype=np.float64)
-    
-    # Collisions handled here
-    collective_force = np.zeros(2)
-    for particle in np.append(particle_list, cursor):  # Include cursor position in our particle list
+    cursor.velocity = [10, 10] 
 
-        friction_force = friction_coefficent * particle.velocity
-        particle.force += friction_force
-
-        if np.linalg.norm(particle.position - object.position) <= contact_distance:
-
-            particle.force+= (- object.position + particle.position)
-            collective_force += (object.position - particle.position)
-            
-    object.force=collective_force + friction_coefficent * object.velocity
-
-    handle_collisions(particle_list + [cursor])
+    handle_collisions(particle_list + [object, cursor])
     
     for particle in particle_list + [object]:
         particle.physics_move()
@@ -177,6 +146,6 @@ while running:
 
 
     pygame.display.flip()
-    clock.tick(60)
+    clock.tick(120)
 
 pygame.quit()
