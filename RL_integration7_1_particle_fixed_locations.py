@@ -50,7 +50,7 @@ state_size = n_particles * 4 + 6  # position and velocity for each particle + ob
 action_size = n_particles * 2  # 2D force vector for each particle
 learning_rate = 0.001
 gamma = 0.99  # Discount factor for future rewards
-action_selection_frequency = 2  # Number of frames to wait before selecting a new action
+action_selection_frequency = 5  # Number of frames to wait before selecting a new action, made this 5 just to see how the model reacts
 frame_counter = 0  # Counter to keep track of frames
 collision_occurred = False
 initial_force_magnitude = 10.0  # Adjust the magnitude of the initial force as needed
@@ -202,7 +202,8 @@ def calculate_reward(particle_list, object, target_pos, start_time, current_time
     # Penalty for wall collisions, removed for simplification
 
     print(reward)
-    return reward, distance_from_object_to_target
+    return reward, #distance_from_object_to_target, having reward ONLY return reward, as far as I can tell 
+                    #the other variable is used nowhere else in the code
 
 
 # Main simulation loop
