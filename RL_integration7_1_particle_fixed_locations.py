@@ -99,11 +99,11 @@ def calculate_reward(particle_list, object, target_pos, start_time, current_time
     previous_distance_to_target = distance_to_target
 
     #if delta_distance_to_target is negative, we are closer to the target and want to reward our model
-    reward = -(delta_distance_to_target)*10
+    reward = -(delta_distance_to_target)*100
 
     # Collision rewards
     if collision_with_object:
-        reward += 200  # Reward for colliding with the object
+        reward =reward+ 200  # Reward for colliding with the object
     if collision_between_particles:
         reward -= 20  # Penalty for particle-particle collision
 
@@ -112,6 +112,8 @@ def calculate_reward(particle_list, object, target_pos, start_time, current_time
         distance_delta = prev_dist - curr_dist
         if distance_delta > 0:
             reward += 10 * distance_delta  # Scale reward based on improvement
+        if distance_delta < 0:
+            reward -= 10 * distance_delta #give negative reward for moving away from the object
 
     # Penalty for wall collisions
     wall_collision_penalty = sum(25 for p in particle_list if p.hit_wall)
@@ -271,7 +273,7 @@ def train_model(model, replay_buffer, batch_size, gamma):
 particle_list = []
 for _ in range(n_particles):
     # Random position for each particle
-    position = np.random.rand(2) * [WIDTH, HEIGHT]
+    position = np.array([WIDTH // 5, HEIGHT // 5])
 
     # Direction from particle to object
     direction_to_object = object_pos - position
