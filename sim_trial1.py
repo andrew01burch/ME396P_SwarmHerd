@@ -81,7 +81,20 @@ class particle:
         self.position = self.position + self.velocity
         
         
+    def collide(self, other_particle, restitution_coefficient=1): #goal is to for the particles to do fully ellastic collision
+        distance_vector = self.position - other_particle.position
+        distance = np.linalg.norm(distance_vector).astype(float)
         
+         # Calculate overlap
+        overlap = float((self.radius + other_particle.radius) - distance)
+
+        # Normalize distance_vector to get collision direction
+        collision_direction = (distance_vector / distance)
+
+        # Move particles away based on their mass (heavier moves less)
+        total_mass = float(self.mass + other_particle.mass)
+        self.position += (overlap * (other_particle.mass / total_mass)) * collision_direction
+        other_particle.position -= (overlap * (self.mass / total_mass)) * collision_direction    
         
     #maybe making a collide function here is a good idea, unsure as of now
 
