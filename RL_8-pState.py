@@ -6,7 +6,7 @@ from tensorflow.keras.layers import Dense
 from tensorflow.keras.optimizers import Adam
 from collections import deque
 import random
-import time
+import os
 
 # Suppress TensorFlow INFO and WARNING messages
 tf.get_logger().setLevel('ERROR')
@@ -50,7 +50,7 @@ n_particles = 10
 friction_coefficient = -0.05
 state_size = n_particles * 4 + 4 + 2  # position and velocity for each particle + object position and velocity + target position
 action_size = n_particles * 2  # 2D force vector for each particle
-learning_rate = 0.001
+learning_rate = 0.005
 gamma = 0.99  # Discount factor for future rewards
 action_selection_frequency = 2  # Number of frames to wait before selecting a new action
 frame_counter = 0  # Counter to keep track of frames
@@ -58,12 +58,17 @@ collision_occurred = False
 initial_force_magnitude = 10.0  # Adjust the magnitude of the initial force as needed
 
 # Define the neural network for RL
-model = Sequential([
-    Dense(64, activation='relu', input_shape=(state_size,)),
-    Dense(64, activation='relu'),
-    Dense(action_size, activation='tanh')  # Force vector in range [-1, 1]
-])
-model.compile(loss='mse', optimizer=Adam(learning_rate))
+for filename in os.listdir(os.getcwd()):
+    if filename.endswith(".keras"):
+        model = tf.keras.models.load_model(f'{filename}')
+        print(f'Using model: {filename}')
+    else:
+        model = Sequential([
+            Dense(64, activation='relu', input_shape=(state_size,)),
+            Dense(64, activation='relu'),
+            Dense(action_size, activation='tanh')  # Force vector in range [-1, 1]
+        ])
+        model.compile(loss='mse', optimizer=Adam(learning_rate))
 
 # Function to extract the current state
 def get_state(particles, object, target_pos):
@@ -84,12 +89,15 @@ def apply_actions(actions, particles, object):
         particle.force = action
 
 # Reward function emphasizing time and total movement
-def calculate_reward(particles, object, target_pos, collision_occurred_with_object):
-    # Calculate current distance to target
-    current_distance_to_target = np.linalg.norm(object.position - target_pos)
-
-    # Base reward based on the reduction in distance to the target
-    reward = 500 - current_distance_to_target * 1.5
+def calculate_reward(particles, object, target_pos, collision_occurred_with_object, starting_distance_to_target):
+    # Current distance between object and target
+    distance_from_object_to_target = np.linalg.norm(object.position - target_pos)
+    #change in disctnace between object and target
+    delta_distance_to_target = starting_distance_to_target - distance_from_object_to_target
+    #setting the new distance as the old distance to recalculate for the next loop
+ 
+    #if delta_distance_to_target is negative, we are closer to the target and want to reward our model
+    reward = -(delta_distance_to_target)*100
 
     # Penalty for wall collisions
     for particle in particles:
@@ -215,9 +223,11 @@ def reset_simulation(particle_list, object, sim_iter):
         pygame.event.clear()
 
     steps = 0
+    print(f'--- Simulation Interation #{sim_iter} ---')
     sim_iter+=1
+    starting_distance_to_target = np.linalg.norm(object.position - target_pos)
 
-    return steps, sim_iter
+    return steps, sim_iter, starting_distance_to_target
 
 class ReplayBuffer:
     def __init__(self, capacity=10000):
@@ -265,7 +275,7 @@ for _ in range(n_particles):
 object = particle(position=object_pos, radius=object_radius, mass=5)
 
 collision_occurred_with_object = False
-collision_occurred_between_particles = False
+# collision_occurred_between_particles = False
 
 #Initialize replay buffer
 replay_buffer = ReplayBuffer(capacity=50000)
@@ -279,10 +289,7 @@ consecutive_successes = 0
 max_success_frames = 600 #frames
 
 # Initialize previous_distance_to_target
-previous_distance_to_target = np.linalg.norm(object_pos - target_pos)
-
-# Initialize previous_particle_distances
-previous_particle_distances = [np.linalg.norm(p.position - object.position) for p in particle_list]
+starting_distance_to_target = np.linalg.norm(object.position - target_pos)
 
 # Main simulation loop
 running = True
@@ -324,24 +331,12 @@ while running:
         particle.physics_move()
     object.physics_move()
 
-    # Check for wall collisions
-    wall_collision = any(p.hit_wall for p in particle_list)
-
-    # Calculate the current distances of particles to the object
-    current_particle_distances = [np.linalg.norm(p.position - object.position) for p in particle_list]
-
     # After updating the physics of particles and object
     next_state = get_state(particle_list, object, target_pos)
 
-    # Calculate the current distance to target
-    current_distance_to_target = np.linalg.norm(object.position - target_pos)
-
     # Calculate reward
-    reward = calculate_reward(particle_list, object, target_pos, collision_occurred_with_object)
+    reward = calculate_reward(particle_list, object, target_pos, collision_occurred_with_object, starting_distance_to_target)
 
-    # Update previous_particle_distances for the next iteration
-    previous_particle_distances = current_particle_distances
-    
     if visualize:
         pygame.draw.rect(screen, BLACK, (0, 0, WIDTH, HEIGHT), 2)
         pygame.draw.circle(screen, BLUE, center=(object.position[0], object.position[1]), radius=object.radius)
@@ -362,26 +357,29 @@ while running:
         consecutive_successes += 1
         if consecutive_successes >= 3:
             print("Model training completed.")
-            running = False
             model.save('particle_swarm_model.h5')
+            running = False
         
         #Train model with accumulated experiences
         train_model(model, replay_buffer, batch_size, gamma)
         #Reset for new session
         print("Hey! That worked! Let's do it again!!")
-        print(f'Object distance to target: {current_distance_to_target}')
-        frames, sim_iter = reset_simulation(particle_list, object, sim_iter)
+        print(f'Reward: {reward}')
+        frames, sim_iter, starting_distance_to_target = reset_simulation(particle_list, object, sim_iter)
         
     elif frames >= max_success_frames:
         print('That didnt quite work... lets try again.')
-        print(f'Object distance to target: {current_distance_to_target}')
+        print(f'Reward: {reward}')
         consecutive_successes = 0  # Reset if the task was not completed in time
         #Train model with accumulated experiences
         train_model(model, replay_buffer, batch_size, gamma)
         #Reset for new session
-        frames, sim_iter = reset_simulation(particle_list, object, sim_iter)
+        frames, sim_iter, starting_distance_to_target = reset_simulation(particle_list, object, sim_iter)
 
     if sim_iter > 10:
-        model.save('particle_swarm_model.h5')
-        
-pygame.quit()
+        model.save('model_p10.keras')
+        print("Model training completed.")
+        running = False
+
+if visualize:
+    pygame.quit()
