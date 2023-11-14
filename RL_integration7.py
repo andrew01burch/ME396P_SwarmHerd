@@ -85,28 +85,30 @@ def apply_actions(actions, particle_list, object):
 
 # Reward function emphasizing time and total movement
 def calculate_reward(particle_list, object, target_pos, start_time, current_time, collision_with_object, collision_between_particles, previous_particle_distances, current_particle_distances):
-    # Base components
-    time_penalty = current_time - start_time
-    #movement_penalty = sum(np.linalg.norm(p.velocity) for p in particle_list)
-    reward = -time_penalty 
+    # # Base components
+    # time_penalty = current_time - start_time
+    # #movement_penalty = sum(np.linalg.norm(p.velocity) for p in particle_list)
+    # reward = -time_penalty 
 
     # Current distance to target
     distance_to_target = np.linalg.norm(object.position - target_pos)
+
+    reward = 500 - distance_to_target * 1.5
 
     # Collision rewards
     if collision_with_object:
         reward += 200  # Reward for colliding with the object
     if collision_between_particles:
-        reward -= 20  # Penalty for particle-particle collision
+        reward -= 100  # Penalty for particle-particle collision
 
-    # Reward for moving towards the object
-    for prev_dist, curr_dist in zip(previous_particle_distances, current_particle_distances):
-        distance_delta = prev_dist - curr_dist
-        if distance_delta > 0:
-            reward += 10 * distance_delta  # Scale reward based on improvement
+    # # Reward for moving towards the object
+    # for prev_dist, curr_dist in zip(previous_particle_distances, current_particle_distances):
+    #     distance_delta = prev_dist - curr_dist
+    #     if distance_delta > 0:
+    #         reward += 10 * distance_delta  # Scale reward based on improvement
 
     # Penalty for wall collisions
-    wall_collision_penalty = sum(25 for p in particle_list if p.hit_wall)
+    wall_collision_penalty = sum(100 for p in particle_list if p.hit_wall)
     reward -= wall_collision_penalty
 
     return reward, distance_to_target
@@ -254,7 +256,7 @@ def train_model(model, replay_buffer, batch_size, gamma):
             target = (reward + gamma * np.amax(model.predict(next_state.reshape(1, -1), verbose = 0)[0]))
         target_f = model.predict(state.reshape(1, -1), verbose = 0)
         target_f[0][np.argmax(action)] = target
-        model.fit(state.reshape(1, -1), target_f, epochs=1)  
+        model.fit(state.reshape(1, -1), target_f, epochs=1, verbose = 0)  
 
 # Initialize particle list and object
 # Initialize particle list with initial force towards the object
@@ -396,10 +398,12 @@ while running:
         train_model(model, replay_buffer, batch_size, gamma)
         #Reset for new session
         print("Hey! That worked! Let's do it again!!")
+        print(f'Object distance to target: {current_distance_to_target}')
         start_time, sim_iter = reset_simulation(particle_list, object, sim_iter)
         
     elif current_duration >= max_success_duration:
-        ('That didnt quite work... lets try again.')
+        print('That didnt quite work... lets try again.')
+        print(f'Object distance to target: {current_distance_to_target}')
         consecutive_successes = 0  # Reset if the task was not completed in time
         #Train model with accumulated experiences
         train_model(model, replay_buffer, batch_size, gamma)
