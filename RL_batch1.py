@@ -56,6 +56,13 @@ action_selection_frequency = 2  # Number of frames to wait before selecting a ne
 frame_counter = 0  # Counter to keep track of frames
 collision_occurred = False
 initial_force_magnitude = 10.0  # Adjust the magnitude of the initial force as needed
+batch_size = 5
+
+# Batch setup
+state_batch_size = 32
+action_batch_size = 32
+states_batch = []
+actions_batch = []
 
 # Define the neural network for RL
 for filename in os.listdir(os.getcwd()):
@@ -87,6 +94,21 @@ def apply_actions(actions, particles, object):
         # Apply force based on action
         # Assuming action is the force vector
         particle.force = action
+
+def get_states(particles_batch, object, target_pos):
+    states = []
+    for particles in particles_batch:
+        particle_states = np.concatenate([np.concatenate([p.position, p.velocity]) for p in particles])
+        object_state = np.concatenate([object.position, object.velocity])
+        state = np.concatenate([particle_states, object_state, target_pos])
+        states.append(state)
+    return np.array(states)
+
+def apply_actions_batch(actions_batch, particles_batch):
+    for actions, particles in zip(actions_batch, particles_batch):
+        for i, particle in enumerate(particles):
+            action = actions[i*2:(i+1)*2]
+            particle.force = action
 
 # Reward function emphasizing time and total movement
 def calculate_reward(particles, object, target_pos, collision_occurred_with_object, starting_distance_to_target):
@@ -247,13 +269,22 @@ def train_model(model, replay_buffer, batch_size, gamma):
         return  # Not enough samples for training
 
     minibatch = replay_buffer.sample(batch_size)
-    for state, action, reward, next_state, done in minibatch:
-        target = reward
-        if not done:
-            target = (reward + gamma * np.amax(model.predict(next_state.reshape(1, -1), verbose = 0)[0]))
-        target_f = model.predict(state.reshape(1, -1), verbose = 0)
-        target_f[0][np.argmax(action)] = target
-        model.fit(state.reshape(1, -1), target_f, epochs=1, verbose = 0)  
+    states, actions, rewards, next_states, dones = zip(*minibatch)
+
+    # Convert to NumPy arrays for batch processing
+    states = np.array(states)
+    next_states = np.array(next_states)
+
+    # Model predictions for batch
+    target_f = model.predict(states, verbose=0)
+    next_state_values = model.predict(next_states, verbose=0)
+
+    for i, (state, action, reward, next_state, done) in enumerate(zip(states, actions, rewards, next_states, dones)):
+        target = reward if done else reward + gamma * np.amax(next_state_values[i])
+        target_f[i][np.argmax(action)] = target
+
+    model.fit(states, target_f, epochs=1, verbose=0)
+
 
 # Initialize particle list and object
 # Initialize particle list with initial force towards the object
@@ -272,6 +303,12 @@ for _ in range(n_particles):
     # Create particle with initial force
     new_particle = particle(mass=10, position=position, velocity=np.random.rand(2), force=initial_force)
     particle_list.append(new_particle)
+
+n_batches = len(particle_list) // batch_size
+
+# Initialize particles_batch as a list of lists (batches)
+particles_batch = [particle_list[i * batch_size:(i + 1) * batch_size] for i in range(n_batches)]
+
 object = particle(position=object_pos, radius=object_radius, mass=5)
 
 collision_occurred_with_object = False
@@ -308,34 +345,26 @@ while running:
     # Handle collisions and move particles
     handle_collisions(particle_list, object)
 
-    current_state = get_state(particle_list, object, target_pos)
+    # Batch process the states and actions
+    for batch in particles_batch:
+        current_states = get_states(batch, object, target_pos)
+        states_batch.extend(current_states)
 
-    # if frames % action_selection_frequency == 0:
-    if np.random.rand() <= epsilon:
-        # Random actions for each particle
-        action = np.random.randn(action_size)
-    else:
-        # Model prediction for all particles
-        action = model.predict(current_state.reshape(1, -1), verbose = 0).flatten()
+    if len(states_batch) >= state_batch_size:
+        actions_batch = model.predict(np.array(states_batch), verbose=0).reshape(-1, action_size)
+        states_batch = []  # Reset the batch
 
-    # Decay epsilon
-    epsilon = max(epsilon_min, epsilon_decay * epsilon)
-
-    last_action = action
-
-    # Apply actions to all particles
-    apply_actions(last_action, particle_list, object)
+    if len(actions_batch) > 0:
+        # Apply actions to each batch
+        for batch in particles_batch:
+            batch_actions = actions_batch[:len(batch)]
+            apply_actions_batch(batch_actions, batch)
+            actions_batch = actions_batch[len(batch):]  # Update the remaining actions
 
     # Update physics of particles and object
     for particle in particle_list:
         particle.physics_move()
     object.physics_move()
-
-    # After updating the physics of particles and object
-    next_state = get_state(particle_list, object, target_pos)
-
-    # Calculate reward
-    reward = calculate_reward(particle_list, object, target_pos, collision_occurred_with_object, starting_distance_to_target)
 
     if visualize:
         pygame.draw.rect(screen, BLACK, (0, 0, WIDTH, HEIGHT), 2)
@@ -350,7 +379,7 @@ while running:
 
     done = np.linalg.norm(object.position - target_pos) < (object_radius + target_radius)
     # Store experience in the replay buffer
-    replay_buffer.add(current_state, action, reward, next_state, done)
+    replay_buffer.add(current_state, actions_batch, reward, states_batch, done)
 
     # Train the model
     if done:
