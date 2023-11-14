@@ -51,63 +51,6 @@ class particle:
 def is_collision(particle1, particle2):
     distance = np.linalg.norm(particle1.position - particle2.position)
     return distance < (particle1.radius + particle2.radius)
-
-# def handle_collisions(particles, object, restitution_coefficient=1):
-#     global collision_occurred_with_object,  collision_occurred_between_particles
-#     collision_occurred_with_object = False
-#     collision_occurred_between_particles = False
-
-#     n = len(particles)
-
-#     # Check for collisions among particles
-#     for i in range(n):
-#         for j in range(i + 1, n):
-#             if is_collision(particles[i], particles[j]):
-#                 collision_occurred_between_particles = True
-#             particle1, particle2 = particles[i], particles[j]
-#             if is_collision(particle1, particle2):
-#                 # Normalize distance_vector to get collision direction
-#                 distance_vector = particle1.position - particle2.position
-#                 collision_direction = distance_vector / np.linalg.norm(distance_vector)
-#                 total_mass = particle1.mass + particle2.mass
-
-#                 # Calculate overlap
-#                 overlap = (particle1.radius + particle2.radius) - np.linalg.norm(distance_vector)
-#                 particle1.position += (overlap * (particle2.mass / total_mass)) * collision_direction
-#                 particle2.position -= (overlap * (particle1.mass / total_mass)) * collision_direction
-
-#                 # Calculate relative velocity
-#                 relative_velocity = particle1.velocity - particle2.velocity
-#                 velocity_along_collision = np.dot(relative_velocity, collision_direction)
-
-#                 # Only proceed to update velocities if particles are moving towards each other
-#                 if velocity_along_collision > 0:
-#                     # Apply the collision impulse
-#                     impulse = (2 * velocity_along_collision / total_mass) * restitution_coefficient
-#                     particle1.velocity -= (impulse * particle2.mass) * collision_direction
-#                     particle2.velocity += (impulse * particle1.mass) * collision_direction
-
-#     # Check for collisions between particles and the object
-#     for particle in particles:
-#         if is_collision(particle, object):
-#             collision_occurred_with_object = True
-
-#             # Collision handling between particle and object
-#             distance_vector = particle.position - object.position
-#             collision_direction = distance_vector / np.linalg.norm(distance_vector)
-#             total_mass = particle.mass + object.mass
-
-#             overlap = (particle.radius + object.radius) - np.linalg.norm(distance_vector)
-#             particle.position += (overlap * (object.mass / total_mass)) * collision_direction
-#             object.position -= (overlap * (particle.mass / total_mass)) * collision_direction
-
-#             relative_velocity = particle.velocity - object.velocity
-#             velocity_along_collision = np.dot(relative_velocity, collision_direction)
-
-#             if velocity_along_collision > 0:
-#                 impulse = (2 * velocity_along_collision / total_mass) * restitution_coefficient
-#                 particle.velocity -= (impulse * object.mass) * collision_direction
-#                 object.velocity += (impulse * particle.mass) * collision_direction
                 
                 
 def handle_collisions(particles, object, restitution_coefficient=1):
