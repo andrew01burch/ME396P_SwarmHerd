@@ -97,7 +97,7 @@ def reset_simulation(particle_list, object, sim_iter):
     object.velocity = np.zeros_like(object.velocity)
     for particle in particle_list:
         #lets have our one particle start in a set spot
-        particle.position = np.array([WIDTH // np.random.rand(), HEIGHT // np.random.rand()])
+        particle.position = np.random.rand(2) * np.array([WIDTH, HEIGHT])
         particle.velocity = np.zeros_like(particle.velocity)
 
     pygame.display.set_caption(f'Simulation Interation: {sim_iter}')
@@ -142,7 +142,7 @@ def train_model(model, replay_buffer, batch_size, gamma):
 particle_list = []
 for _ in range(n_particles):
     # Random position for each particle
-    position = np.array([WIDTH // 5, HEIGHT // 5])
+    position = np.random.rand(2) * np.array([WIDTH, HEIGHT])
 
     # Direction from particle to object
     direction_to_object = object_pos - position
@@ -172,12 +172,13 @@ consecutive_successes = 0
 max_success_duration = 15000  # 15 seconds in milliseconds
 
 
-# Initialize previous_distance_to_target
+# Initialize previous_distance_to_target and particle distance to object
 previous_distance_to_target = np.linalg.norm(object_pos - target_pos)
+previous_particle_distance_to_object = np.linalg.norm(particle_list[0].position - object.position)
 
 # Initialize previous_particle_distances from the object
 #previous_particle_distances = [np.linalg.norm(p.position - object.position) for p in particle_list]
-def calculate_reward(particle_list, object, target_pos, start_time, current_time, collision_occurred_with_object, collision_occurred_between_particles, particle_distances_to_object, previous_distance_to_target):
+def calculate_reward(particle_list, object, target_pos, start_time, current_time, collision_occurred_with_object, collision_occurred_between_particles, particle_distances_to_object, dela_distance_particle_object, particle_distance_to_object, previous_particle_distance_to_object, previous_distance_to_target):
     # Base components
     time_penalty = current_time - start_time
     #movement_penalty = sum(np.linalg.norm(p.velocity) for p in particle_list)
@@ -189,19 +190,18 @@ def calculate_reward(particle_list, object, target_pos, start_time, current_time
     delta_distance_to_target = previous_distance_to_target - distance_from_object_to_target
     #setting the new distance as the old distance to recalculate for the next loop
     previous_distance_to_target = distance_from_object_to_target
-
     #if delta_distance_to_target is negative, we are closer to the target and want to reward our model
-    reward = -(delta_distance_to_target)*100
+    reward = (delta_distance_to_target)*10
+    
+    #this finds the change in distance from the particle to the object
+    delta_particle_distance_to_object =  previous_particle_distance_to_object - particle_distance_to_object
+    previous_particle_distance_to_object = particle_distance_to_object
+    
+    reward += delta_particle_distance_to_object*10
+    print(delta_particle_distance_to_object)
 
-    #removed collision reward with obect to simplify
 
-    # Reward for moving towards the object
-    # for prev_dist, curr_dist in zip(previous_particle_distances, current_particle_distances):
-    #      distance_delta = prev_dist - curr_dist
-
-    # Penalty for wall collisions, removed for simplification
-
-    print(reward)
+    #print(reward)
     return reward, #distance_from_object_to_target, having reward ONLY return reward, as far as I can tell 
                     #the other variable is used nowhere else in the code
 
@@ -253,27 +253,30 @@ while running:
     #my model accordingly.
     #CHANGED FROM ITERATING THROUGH ALL PARTICLES TO JUST THE FIRST PARTICLE IN PARTICLE_LIST BECASUE IN THIS
     #SCRIPT THERE IS ONLY 1 PARTICLE
-    particle_distances_to_object.append(np.linalg.norm(particle_list[0].position - object.position))
-
+    particle_distance_to_object = np.linalg.norm(particle_list[0].position - object.position)
+    dela_distance_particle_object = previous_particle_distance_to_object - particle_distance_to_object
     # After updating the physics of particles and object
     next_state = get_state(particle_list, object, target_pos)
 
 
     # Calculate reward
     current_time = pygame.time.get_ticks()
-    reward= calculate_reward(
-        particle_list, 
-        object, 
-        target_pos, 
-        start_time, 
-        current_time, 
-        collision_occurred_with_object, 
-        collision_occurred_between_particles,
-        particle_distances_to_object,
-        previous_distance_to_target
-    )
+    reward= calculate_reward(particle_list,
+    object, 
+    target_pos,
+    start_time, current_time, 
+    collision_occurred_with_object, 
+    collision_occurred_between_particles, 
+    particle_distances_to_object, 
+    dela_distance_particle_object, 
+    particle_distance_to_object, 
+    previous_particle_distance_to_object, 
+    previous_distance_to_target)
     # Update previous_particle_distances for the next iteration
     #no longer needed becasue we are saving particledistances as a list
+     #reward moving closer to the target:
+    previous_particle_distance_to_object = particle_distance_to_object
+    #set my current distance as my new previous distance
     
     
     pygame.draw.rect(screen, BLACK, (0, 0, WIDTH, HEIGHT), 2)
