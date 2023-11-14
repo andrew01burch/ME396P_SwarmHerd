@@ -70,204 +70,6 @@ for filename in os.listdir(os.getcwd()):
         ])
         model.compile(loss='mse', optimizer=Adam(learning_rate))
 
-# Function to extract the current state
-def get_state(particle, object, target_pos):
-    particle_state = np.concatenate([particle.position, particle.velocity])
-    object_state = np.concatenate([object.position, object.velocity])
-    state = np.concatenate([particle_state, object_state, target_pos])
-    return state
-
-def apply_action(action, particle):
-    particle.force = action  # Apply force to the particle
-
-def calculate_individual_reward(particle, object, target_pos, collision_occurred_with_object, starting_distance_to_target):
-    # Current distance between object and target
-    distance_from_object_to_target = np.linalg.norm(object.position - target_pos)
-    #change in disctnace between object and target
-    delta_distance_to_target = starting_distance_to_target - distance_from_object_to_target
-    #setting the new distance as the old distance to recalculate for the next loop
- 
-    #if delta_distance_to_target is negative, we are closer to the target and want to reward our model
-    reward = (delta_distance_to_target)*100
-
-    # Penalty for wall collisions
-    if particle.hit_wall:
-        reward -= 50  # Adjust the penalty value as needed
-
-    # Reward for collision with object
-    if collision_occurred_with_object:
-        reward += 100  # Adjust the reward value as needed
-
-    return reward
-
-# Reward function emphasizing time and total movement
-# def calculate_reward(particles, object, target_pos, collision_occurred_with_object, starting_distance_to_target):
-#     # Current distance between object and target
-#     distance_from_object_to_target = np.linalg.norm(object.position - target_pos)
-#     #change in disctnace between object and target
-#     delta_distance_to_target = starting_distance_to_target - distance_from_object_to_target
-#     #setting the new distance as the old distance to recalculate for the next loop
- 
-#     #if delta_distance_to_target is negative, we are closer to the target and want to reward our model
-#     reward = (delta_distance_to_target)*100
-
-#     # Penalty for wall collisions
-#     for particle in particles:
-#         if particle.hit_wall:
-#             reward -= 50  # Adjust the penalty value as needed
-
-#     # Reward for collision with object
-#     if collision_occurred_with_object:
-#         reward += 100  # Adjust the reward value as needed
-
-#     return reward
-
-# Class definition for particles
-class particle:
-    def __init__(self, mass=1.0, position=np.array([0.0, 0.0]), radius=5.0, velocity=np.array([0.0, 0.0]), force=np.array([0.0, 0.0])):
-        self.position = position.astype(float)
-        self.force = force.astype(float)
-        self.radius = float(radius)
-        self.velocity = velocity.astype(float)
-        self.mass = float(mass)
-        self.hit_wall = False
-        
-    def physics_move(self):
-        self.hit_wall = False
-        # Collision with boundaries and physics updates...
-        # Collision with left or right boundary
-        if self.position[0] - self.radius < 0 or self.position[0] + self.radius > WIDTH:
-            self.velocity[0] = -self.velocity[0]
-            self.position[0] = np.clip(self.position[0], self.radius, WIDTH - self.radius)
-            self.hit_wall = True
-        if self.position[1] - self.radius < 0 or self.position[1] + self.radius > HEIGHT:
-            self.velocity[1] = -self.velocity[1]
-            self.position[1] = np.clip(self.position[1], self.radius, HEIGHT - self.radius)
-            self.hit_wall = True
-            
-        # Calculate acceleration from force
-        acceleration = self.force / self.mass
-
-        # Update velocity with acceleration
-        self.velocity += acceleration
-
-        # Apply friction to the velocity
-        self.velocity += friction_coefficient * self.velocity
-
-        if np.linalg.norm(self.velocity) < 0.05:
-            self.velocity = np.zeros_like(self.velocity)
-
-        # Update position with velocity
-        self.position += self.velocity
-
-# Helper function to check if a collision occurs between two objects
-def is_collision(particle1, particle2):
-    distance = np.linalg.norm(particle1.position - particle2.position)
-    return distance < (particle1.radius + particle2.radius)
-
-def handle_collisions(particles, object, restitution_coefficient=1):
-    global collision_occurred_with_object,  collision_occurred_between_particles
-    collision_occurred_with_object = False
-    collision_occurred_between_particles = False
-
-    n = len(particles)
-
-    # Check for collisions among particles
-    for i in range(n):
-        for j in range(i + 1, n):
-            if is_collision(particles[i], particles[j]):
-                collision_occurred_between_particles = True
-            particle1, particle2 = particles[i], particles[j]
-            if is_collision(particle1, particle2):
-                # Normalize distance_vector to get collision direction
-                distance_vector = particle1.position - particle2.position
-                collision_direction = distance_vector / np.linalg.norm(distance_vector)
-                total_mass = particle1.mass + particle2.mass
-
-                # Calculate overlap
-                overlap = (particle1.radius + particle2.radius) - np.linalg.norm(distance_vector)
-                particle1.position += (overlap * (particle2.mass / total_mass)) * collision_direction
-                particle2.position -= (overlap * (particle1.mass / total_mass)) * collision_direction
-
-                # Calculate relative velocity
-                relative_velocity = particle1.velocity - particle2.velocity
-                velocity_along_collision = np.dot(relative_velocity, collision_direction)
-
-                # Only proceed to update velocities if particles are moving towards each other
-                if velocity_along_collision > 0:
-                    # Apply the collision impulse
-                    impulse = (2 * velocity_along_collision / total_mass) * restitution_coefficient
-                    particle1.velocity -= (impulse * particle2.mass) * collision_direction
-                    particle2.velocity += (impulse * particle1.mass) * collision_direction
-
-    # Check for collisions between particles and the object
-    for particle in particles:
-        if is_collision(particle, object):
-            collision_occurred_with_object = True
-
-            # Collision handling between particle and object
-            distance_vector = particle.position - object.position
-            collision_direction = distance_vector / np.linalg.norm(distance_vector)
-            total_mass = particle.mass + object.mass
-
-            overlap = (particle.radius + object.radius) - np.linalg.norm(distance_vector)
-            particle.position += (overlap * (object.mass / total_mass)) * collision_direction
-            object.position -= (overlap * (particle.mass / total_mass)) * collision_direction
-
-            relative_velocity = particle.velocity - object.velocity
-            velocity_along_collision = np.dot(relative_velocity, collision_direction)
-
-            if velocity_along_collision > 0:
-                impulse = (2 * velocity_along_collision / total_mass) * restitution_coefficient
-                particle.velocity -= (impulse * object.mass) * collision_direction
-                object.velocity += (impulse * particle.mass) * collision_direction
-
-def reset_simulation(particle_list, object, sim_iter):
-    object.position = np.random.rand(2) * [WIDTH, HEIGHT]
-    object.velocity = np.zeros_like(object.velocity)
-    for particle in particle_list:
-        particle.position = np.random.rand(2) * [WIDTH, HEIGHT]
-        particle.velocity = np.zeros_like(particle.velocity)
-
-    if visualize:
-        pygame.display.set_caption(f'Simulation Interation: {sim_iter}')
-        # Clear the Pygame event queue to avoid processing stale events
-        pygame.event.clear()
-
-    steps = 0
-    print(f'--- Simulation Interation #{sim_iter} ---')
-    sim_iter+=1
-    starting_distance_to_target = np.linalg.norm(object.position - target_pos)
-
-    return steps, sim_iter, starting_distance_to_target
-
-class ReplayBuffer:
-    def __init__(self, capacity=10000):
-        self.buffer = deque(maxlen=capacity)
-    
-    def add(self, state, action, reward, next_state, done):
-        self.buffer.append((state, action, reward, next_state, done))
-    
-    def sample(self, batch_size):
-        return random.sample(self.buffer, batch_size)
-
-    def size(self):
-        return len(self.buffer)
-
-def train_model(model, replay_buffers, batch_size, gamma):
-    if any([buffer.size() < batch_size for buffer in replay_buffers]):
-        return  # Not enough samples in one of the buffers
-
-    for buffer in replay_buffers:
-        minibatch = buffer.sample(batch_size)
-        for state, action, reward, next_state, done in minibatch:
-            target = reward
-            if not done:
-                target = (reward + gamma * np.amax(model.predict(next_state.reshape(1, -1), verbose = 0)[0]))
-            target_f = model.predict(state.reshape(1, -1), verbose = 0)
-            target_f[0][np.argmax(action)] = target
-            model.fit(state.reshape(1, -1), target_f, epochs=1, verbose = 0)  
-
 # Initialize particle list and object
 # Initialize particle list with initial force towards the object
 particle_list = []
@@ -288,7 +90,6 @@ for _ in range(n_particles):
 object = particle(position=object_pos, radius=object_radius, mass=5)
 
 collision_occurred_with_object = False
-# collision_occurred_between_particles = False
 
 #Initialize replay buffer
 replay_buffers = [ReplayBuffer(capacity=50000) for _ in range(n_particles)]
@@ -321,25 +122,24 @@ while running:
     # Handle collisions and move particles
     handle_collisions(particle_list, object)
 
+    # Gather all current states
+    current_states = np.array([get_state(particle, object, target_pos) for particle in particle_list])
+
+    # Batch prediction
+    actions = model.predict(current_states, verbose=0)
+
     for particle_index, particle in enumerate(particle_list):
-        current_state = get_state(particle, object, target_pos)
-        if np.random.rand() <= epsilon:
-            action = np.random.randn(2)  # 2D force vector for this particle
-        else:
-            action = model.predict(current_state.reshape(1, -1), verbose=0).flatten()[:2]
-        
+        action = actions[particle_index][:2]  # Assuming the model returns the correct shape
         apply_action(action, particle)
         particle.physics_move()  # Update physics of this particle
 
         # Calculate reward for this particle
-        reward = calculate_individual_reward(particle, object, target_pos, collision_occurred_with_object, starting_distance_to_target)
-
-        # Get next state for this particle
         next_state = get_state(particle, object, target_pos)
         done = np.linalg.norm(object.position - target_pos) < (object_radius + target_radius)
-        
-        # Add experience to this particle's replay buffer
-        replay_buffers[particle_index].add(current_state, action, reward, next_state, done)
+        reward = calculate_individual_reward(particle, object, target_pos, collision_occurred_with_object, starting_distance_to_target)
+
+        # Add experience to the respective particle's replay buffer
+        replay_buffers[particle_index].add(current_states[particle_index], actions[particle_index], reward, next_state, done)
 
     # Update object's physics
     object.physics_move()
@@ -363,6 +163,13 @@ while running:
 
     done = np.linalg.norm(object.position - target_pos) < (object_radius + target_radius)
 
+    # Define a training frequency
+    training_freq = 50  # Example: Train the model every 50 frames
+
+    # Inside the main loop
+    if frames % training_freq == 0:
+        train_model(model, replay_buffers, batch_size, gamma)
+
     # Train the model
     if done:
         consecutive_successes += 1
@@ -372,7 +179,7 @@ while running:
             running = False
         
         #Train model with accumulated experiences
-        train_model(model, replay_buffers, batch_size, gamma)
+        # train_model(model, replay_buffers, batch_size, gamma)
         #Reset for new session
         print("Hey! That worked! Let's do it again!!")
         print(f'Reward: {reward}')
@@ -383,7 +190,7 @@ while running:
         print(f'Reward: {reward}')
         consecutive_successes = 0  # Reset if the task was not completed in time
         #Train model with accumulated experiences
-        train_model(model, replay_buffers, batch_size, gamma)
+        # train_model(model, replay_buffers, batch_size, gamma)
         #Reset for new session
         frames, sim_iter, starting_distance_to_target = reset_simulation(particle_list, object, sim_iter)
 
