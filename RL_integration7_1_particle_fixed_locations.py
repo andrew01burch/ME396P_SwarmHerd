@@ -61,13 +61,14 @@ action_selection_frequency = 50  # Number of frames to wait before selecting a n
 frame_counter = 0  # Counter to keep track of frames
 collision_occurred = False
 initial_force_magnitude = 10.0  # Adjust the magnitude of the initial force as needed
-
+training_old_model = False
 
 # Define the neural network for RL
 for filename in os.listdir(os.getcwd()):
     if filename.endswith(".keras"):
         model = tf.keras.models.load_model(f'{filename}')
         print(f'Using model: {filename}')
+        training_old_model = True
     else:
         model = Sequential([
             Dense(64, activation='relu', input_shape=(state_size,)),
@@ -106,7 +107,7 @@ def reset_simulation(particle_list, object, sim_iter):
     object.velocity = np.zeros_like(object.velocity)
     for particle in particle_list:
         #lets have our one particle start in a random spot
-        particle.position = np.random.rand(2) * np.array([WIDTH, HEIGHT])
+        particle.position = np.array([WIDTH // 5, HEIGHT // 5])
         particle.velocity = np.zeros_like(particle.velocity)
 
     if visualize:
@@ -153,7 +154,7 @@ def train_model(model, replay_buffer, batch_size, gamma):
 particle_list = []
 for _ in range(n_particles):
     # Random position for each particle
-    position = np.random.rand(2) * np.array([WIDTH, HEIGHT])
+    position = np.array([WIDTH // 5, WIDTH // 5])
 
     # Direction from particle to object
     direction_to_object = object_pos - position
@@ -182,17 +183,14 @@ previous_distance_to_target = np.linalg.norm(object_pos - target_pos)
 previous_particle_distance_to_object = np.linalg.norm(particle_list[0].position - object.position)
 
 
-def calculate_reward(particle_list, 
-    object, 
-    target_pos, 
-    start_time, 
-    current_time, 
-    collision_occurred_with_object, 
-    collision_occurred_between_particles, 
-    particle_distances_to_object, 
-    dela_distance_particle_object, 
-    particle_distance_to_object, 
-    previous_particle_distance_to_object, 
+def calculate_reward(particle_list,
+    object,
+    target_pos,
+    start_time, current_time, 
+    collision_occurred_with_object,
+    collision_occurred_between_particles,
+    particle_distances_to_object,
+    dela_distance_particle_object,
     previous_distance_to_target,
     delta_particle_distance_to_object):
     # Base components
@@ -210,7 +208,7 @@ def calculate_reward(particle_list,
     #reward = (delta_distance_to_target)*10
     
     
-    reward += delta_particle_distance_to_object*10
+    reward = delta_particle_distance_to_object*10
     #print(delta_particle_distance_to_object)
 
 
@@ -243,10 +241,10 @@ while running:
     if frame_counter % action_selection_frequency == 0:
         # the state you START at before taking this action
         current_state = get_state(particle_list, object, target_pos)
-
-        if np.random.rand() <= epsilon:
+        if training_old_model == False:
+            if np.random.rand() <= epsilon:
             # Choose a random force magnitude for exploration
-            action = np.random.randn(n_particles * 2)  # Random values for each force dimension
+                action = np.random.randn(n_particles * 2)  # Random values for each force dimension
         else:
             # Predict force magnitude based on model for exploitation
             action = model.predict(current_state.reshape(1, -1), verbose = 0).flatten()
@@ -283,7 +281,7 @@ while running:
     previous_particle_distance_to_object = particle_distance_to_object
     #we need to be RESETTING reward every time the agent chooses a new action, so reward should ADD UP for a
     #givin action, and then be reset when the agent takes a new action, then be ADDED up again for the next action
-    reward+= calculate_reward(particle_list,
+    reward= reward + calculate_reward(particle_list,
     object,
     target_pos,
     start_time, current_time, 
