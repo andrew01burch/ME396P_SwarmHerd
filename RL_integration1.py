@@ -50,12 +50,19 @@ n_particles = 20
 state_size = n_particles * 4 + 4  # n_particles particles with (position, velocity) and (object position, target position).
 action_size = n_particles * 2  # n_particles particles with a 2D force vector each.
 
-# Define the neural network architecture
-model = Sequential([
-    Dense(64, activation='relu', input_shape=(state_size,)),
-    Dense(64, activation='relu'),
-    Dense(action_size, activation='tanh')  # Using tanh to keep the output in [-1, 1] range
-])
+
+# Define the neural network for RL
+for filename in os.listdir(os.getcwd()):
+    if filename.endswith(".keras"):
+        model = tf.keras.models.load_model(f'{filename}')
+        print(f'Using model: {filename}')
+    else:
+        model = Sequential([
+            Dense(64, activation='relu', input_shape=(state_size,)),
+            Dense(64, activation='relu'),
+            Dense(action_size, activation='tanh')  # Force vector in range [-1, 1]
+        ])
+        model.compile(loss='mse', optimizer=Adam(learning_rate))
 
 optimizer = Adam(learning_rate=0.001)
 model.compile(loss='mse', optimizer=optimizer)
