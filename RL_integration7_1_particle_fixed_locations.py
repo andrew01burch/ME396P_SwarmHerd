@@ -57,7 +57,7 @@ state_size = n_particles * 4 + 6  # position and velocity for each particle + ob
 action_size = n_particles * 2  # 2D force vector for each particle
 learning_rate = 0.005
 gamma = 0.99  # Discount factor for future rewards
-action_selection_frequency = 5  # Number of frames to wait before selecting a new action, made this 5 just to see how the model reacts
+action_selection_frequency = 50  # Number of frames to wait before selecting a new action, made this 5 just to see how the model reacts
 frame_counter = 0  # Counter to keep track of frames
 collision_occurred = False
 initial_force_magnitude = 10.0  # Adjust the magnitude of the initial force as needed
@@ -181,8 +181,7 @@ last_action = np.zeros(action_size)
 previous_distance_to_target = np.linalg.norm(object_pos - target_pos)
 previous_particle_distance_to_object = np.linalg.norm(particle_list[0].position - object.position)
 
-# Initialize previous_particle_distances from the object
-#previous_particle_distances = [np.linalg.norm(p.position - object.position) for p in particle_list]
+
 def calculate_reward(particle_list, object, target_pos, start_time, current_time, collision_occurred_with_object, collision_occurred_between_particles, particle_distances_to_object, dela_distance_particle_object, particle_distance_to_object, previous_particle_distance_to_object, previous_distance_to_target):
     # Base components
     time_penalty = current_time - start_time
@@ -203,17 +202,16 @@ def calculate_reward(particle_list, object, target_pos, start_time, current_time
     previous_particle_distance_to_object = particle_distance_to_object
     
     reward += delta_particle_distance_to_object*10
-    print(delta_particle_distance_to_object)
+    #print(delta_particle_distance_to_object)
 
 
     #print(reward)
-    return reward, #distance_from_object_to_target, having reward ONLY return reward, as far as I can tell 
+    return reward #distance_from_object_to_target, having reward ONLY return reward, as far as I can tell 
                     #the other variable is used nowhere else in the code
-
-
 # Define the maximum duration for a successful run (in milliseconds)
 consecutive_successes = 0
 max_success_frames = 600 #frames
+reward = 0  # Initialize reward at zero
 
 # Main simulation loop
 running = True
@@ -234,7 +232,7 @@ while running:
     handle_collisions(particle_list, object)
 
     if frame_counter % action_selection_frequency == 0:
-        # Get current state
+        # the state you START at before taking this action
         current_state = get_state(particle_list, object, target_pos)
 
         if np.random.rand() <= epsilon:
@@ -266,7 +264,6 @@ while running:
     particle_distance_to_object = np.linalg.norm(particle_list[0].position - object.position)
     dela_distance_particle_object = previous_particle_distance_to_object - particle_distance_to_object
     # After updating the physics of particles and object
-    next_state = get_state(particle_list, object, target_pos)
 
 
     # Calculate reward
@@ -274,7 +271,7 @@ while running:
 
     #we need to be RESETTING reward every time the agent chooses a new action, so reward should ADD UP for a
     #givin action, and then be reset when the agent takes a new action, then be ADDED up again for the next action
-    reward= reward+ calculate_reward(particle_list,
+    reward+= calculate_reward(particle_list,
     object,
     target_pos,
     start_time, current_time, 
@@ -285,6 +282,7 @@ while running:
     particle_distance_to_object,
     previous_particle_distance_to_object,
     previous_distance_to_target)
+
 
     # Update previous_particle_distances for the next iteration
     #no longer needed becasue we are saving particledistances as a list
@@ -303,10 +301,18 @@ while running:
         pygame.display.flip()
         clock.tick(60)
 
+    
+
+    #this checks to see if we have won
     done = np.linalg.norm(object.position - target_pos) < (object_radius + target_radius)
     # Store experience in the replay buffer
     if frame_counter % action_selection_frequency == 0:
+        #next_state is the state that the action (calculated earlier) HAS TAKEN YOU TO.
+        #we only need to calculate this when we are about to take a new action, becasue
+        next_state = get_state(particle_list, object, target_pos)
+
         replay_buffer.add(current_state, action, reward, next_state, done)
+        print(reward)
         reward = 0 #reset reward after adding to the replay buffer so we can calculate the reward for the next action
 
     # Train the model
@@ -327,7 +333,7 @@ while running:
         
     elif frame_counter >= max_success_frames:
         print('That didnt quite work... lets try again.')
-        print(f'Reward: {reward}')
+        #printing reward here is meaninlgess, as reward should be tied to a single action
         consecutive_successes = 0  # Reset if the task was not completed in time
         #Train model with accumulated experiences
         train_model(model, replay_buffer, batch_size, gamma)
