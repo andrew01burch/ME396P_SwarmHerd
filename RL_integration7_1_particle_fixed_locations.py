@@ -182,7 +182,19 @@ previous_distance_to_target = np.linalg.norm(object_pos - target_pos)
 previous_particle_distance_to_object = np.linalg.norm(particle_list[0].position - object.position)
 
 
-def calculate_reward(particle_list, object, target_pos, start_time, current_time, collision_occurred_with_object, collision_occurred_between_particles, particle_distances_to_object, dela_distance_particle_object, particle_distance_to_object, previous_particle_distance_to_object, previous_distance_to_target):
+def calculate_reward(particle_list, 
+    object, 
+    target_pos, 
+    start_time, 
+    current_time, 
+    collision_occurred_with_object, 
+    collision_occurred_between_particles, 
+    particle_distances_to_object, 
+    dela_distance_particle_object, 
+    particle_distance_to_object, 
+    previous_particle_distance_to_object, 
+    previous_distance_to_target,
+    delta_particle_distance_to_object):
     # Base components
     time_penalty = current_time - start_time
     #movement_penalty = sum(np.linalg.norm(p.velocity) for p in particle_list)
@@ -195,11 +207,8 @@ def calculate_reward(particle_list, object, target_pos, start_time, current_time
     #setting the new distance as the old distance to recalculate for the next loop
     previous_distance_to_target = distance_from_object_to_target
     #if delta_distance_to_target is negative, we are closer to the target and want to reward our model
-    reward = (delta_distance_to_target)*10
+    #reward = (delta_distance_to_target)*10
     
-    #this finds the change in distance from the particle to the object
-    delta_particle_distance_to_object =  previous_particle_distance_to_object - particle_distance_to_object
-    previous_particle_distance_to_object = particle_distance_to_object
     
     reward += delta_particle_distance_to_object*10
     #print(delta_particle_distance_to_object)
@@ -269,6 +278,9 @@ while running:
     # Calculate reward
     current_time = pygame.time.get_ticks()
 
+    delta_particle_distance_to_object =  previous_particle_distance_to_object - particle_distance_to_object
+
+    previous_particle_distance_to_object = particle_distance_to_object
     #we need to be RESETTING reward every time the agent chooses a new action, so reward should ADD UP for a
     #givin action, and then be reset when the agent takes a new action, then be ADDED up again for the next action
     reward+= calculate_reward(particle_list,
@@ -279,9 +291,8 @@ while running:
     collision_occurred_between_particles,
     particle_distances_to_object,
     dela_distance_particle_object,
-    particle_distance_to_object,
-    previous_particle_distance_to_object,
-    previous_distance_to_target)
+    previous_distance_to_target,
+    delta_particle_distance_to_object)
 
 
     # Update previous_particle_distances for the next iteration
