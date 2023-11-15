@@ -97,7 +97,7 @@ def reset_simulation(particle_list, object, sim_iter):
     object.velocity = np.zeros_like(object.velocity)
     for particle in particle_list:
         #lets have our one particle start in a set spot
-        particle.position = np.array([WIDTH // 5, HEIGHT // 5])
+        particle.position = np.array([WIDTH // np.random.rand(), HEIGHT // np.random.rand()])
         particle.velocity = np.zeros_like(particle.velocity)
 
     pygame.display.set_caption(f'Simulation Interation: {sim_iter}')
