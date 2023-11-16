@@ -78,6 +78,7 @@ def get_state(particles, object, target_pos):
     state = np.concatenate([particle_states, object_state, target_pos])
     return state
 
+actionPrinter=[]
 # Function to apply actions to the particles
 def apply_actions(actions, particles, object):
     for i, particle in enumerate(particles):
@@ -87,6 +88,8 @@ def apply_actions(actions, particles, object):
         # Apply force based on action
         # Assuming action is the force vector
         particle.force = action
+        #print(particle.force)
+
 
 # Reward function emphasizing time and total movement
 def calculate_reward(particles, object, target_pos, collision_occurred_with_object, starting_distance_to_target):

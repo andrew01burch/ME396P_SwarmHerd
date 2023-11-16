@@ -65,7 +65,7 @@ training_old_model = False
 
 # Define the neural network for RL
 for filename in os.listdir(os.getcwd()):
-    if filename.endswith(".keras"):
+    if filename.startswith("model_p"):
         model = tf.keras.models.load_model(f'{filename}')
         print(f'Using model: {filename}')
         training_old_model = True
@@ -338,8 +338,6 @@ while running:
         
         #we dont want overwhelmingly bad choices to overshadow small good choices, so if the agent made
         #choices that resulted in a negative reward, we want to set that reward to 0
-        if reward < 0:
-            reward = 0
         replay_buffer.add(state_list[-2], action, reward, state_list[-1], done)
         state_list.clear()
         #only need to store the state before a taken action, and the state after a taken action
