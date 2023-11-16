@@ -14,7 +14,7 @@ import os
 tf.get_logger().setLevel('ERROR')
 
 #decide to visualize the game or not (for training purposes)
-visualize = True
+visualize = False
 
 # Screen dimensions, need these if we are to visualize or not
 WIDTH, HEIGHT = 800, 600
@@ -96,7 +96,7 @@ def apply_actions(actions, particle_list, object):
         # Apply the new force to the particle
         # Assuming actions are now the force magnitudes
         force_magnitude = actions[i*2:(i+1)*2]
-        particle.force = direction * force_magnitude
+        particle.force = force_magnitude
 
 # Reward function emphasizing time and total movement
 
@@ -209,7 +209,9 @@ def calculate_reward(particle_list,
     
     
     reward = delta_particle_distance_to_object*10
-    #print(delta_particle_distance_to_object)
+    if reward < 0:
+        reward = 0
+    #we dont want actions that produce negative reward to hide actions that produce positive reward
 
 
     #print(reward)
@@ -254,8 +256,8 @@ while running:
 
         last_action = action
 
-    # Apply actions to particles
-    apply_actions(last_action, particle_list, object)
+        # Apply actions to particles
+        apply_actions(last_action, particle_list, object)
 
 
     # Update physics of particles and object
