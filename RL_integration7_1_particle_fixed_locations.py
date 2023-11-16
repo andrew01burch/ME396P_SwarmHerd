@@ -14,7 +14,7 @@ import os
 tf.get_logger().setLevel('ERROR')
 
 #decide to visualize the game or not (for training purposes)
-visualize = False
+visualize = True
 
 # Screen dimensions, need these if we are to visualize or not
 WIDTH, HEIGHT = 800, 600
@@ -119,6 +119,7 @@ def reset_simulation(particle_list, object, sim_iter):
     print(f'--- Simulation Interation #{sim_iter} ---')
     sim_iter+=1
     starting_distance_to_target = np.linalg.norm(object.position - target_pos)
+    state_list.clear()
 
     return steps, sim_iter, starting_distance_to_target
 
@@ -140,7 +141,7 @@ def train_model(model, replay_buffer, batch_size, gamma):
     if replay_buffer.size() < batch_size:
         return  # Not enough samples for training
 
-    minibatch = replay_buffer.sample(batch_size)
+    minibatch = replay_buffer.sample(batch_size) #this is so we learn from everything in the buffer
     for state, action, reward, next_state, done in minibatch:
         target = reward
         if not done:
@@ -160,20 +161,20 @@ for _ in range(n_particles):
     direction_to_object = object_pos - position
     direction_to_object /= np.linalg.norm(direction_to_object)  # Normalize the direction
 
-    # Set initial force towards the object
-    initial_force = direction_to_object * initial_force_magnitude
+    # Set initial force towards the object DONT DO THIS, WE WANT TO START WITH NO FORCE
+    #initial_force = direction_to_object * initial_force_magnitude
 
     # Create particle with initial force
-    new_particle = particle(mass=10, position=position, velocity=np.random.rand(2), force=initial_force)
+    new_particle = particle(mass=10, position=position)
     particle_list.append(new_particle)
-object = particle(position=object_pos, radius=object_radius, mass=5)
+object = particle(position=object_pos, radius=object_radius, mass=50)
 
 collision_occurred_with_object = False
 collision_occurred_between_particles = False
 
 #Initialize replay buffer
 replay_buffer = ReplayBuffer(capacity=50000)
-batch_size = 32
+batch_size = 10
 
 # Initialize last chosen action
 last_action = np.zeros(action_size)
@@ -209,8 +210,6 @@ def calculate_reward(particle_list,
     
     
     reward = delta_particle_distance_to_object*10
-    if reward < 0:
-        reward = 0
     #we dont want actions that produce negative reward to hide actions that produce positive reward
 
 
@@ -222,13 +221,15 @@ consecutive_successes = 0
 max_success_frames = 600 #frames
 reward = 0  # Initialize reward at zero
 
+actionFrame = 0 #initalized so we dont crash on the first frame
+state_list = []
 # Main simulation loop
 running = True
 start_time = pygame.time.get_ticks()
 sim_iter = 1
 particle_distances_to_object=[]
 while running:
-    frame_counter += 1
+    
     if visualize:
         # Clear the screen and render the simulation
         screen.fill(WHITE)
@@ -241,15 +242,17 @@ while running:
     handle_collisions(particle_list, object)
 
     if frame_counter % action_selection_frequency == 0:
+        actionFrame = frame_counter
         # the state you START at before taking this action
-        current_state = get_state(particle_list, object, target_pos)
+        state_list.append(get_state(particle_list, object, target_pos))
         if training_old_model == False:
             if np.random.rand() <= epsilon:
             # Choose a random force magnitude for exploration
                 action = np.random.randn(n_particles * 2)  # Random values for each force dimension
         else:
             # Predict force magnitude based on model for exploitation
-            action = model.predict(current_state.reshape(1, -1), verbose = 0).flatten()
+            action = model.predict(state_list[-1].reshape(1, -1), verbose = 0).flatten()
+
 
         # Decay the epsilon value
         epsilon = max(epsilon_min, epsilon_decay * epsilon)
@@ -259,6 +262,8 @@ while running:
         # Apply actions to particles
         apply_actions(last_action, particle_list, object)
 
+    #need to do this here or else we will be appending the same state to the state list twice
+    frame_counter += 1
 
     # Update physics of particles and object
     for particle in particle_list:
@@ -272,7 +277,10 @@ while running:
     #SCRIPT THERE IS ONLY 1 PARTICLE
     particle_distance_to_object = np.linalg.norm(particle_list[0].position - object.position)
     dela_distance_particle_object = previous_particle_distance_to_object - particle_distance_to_object
-    # After updating the physics of particles and object
+    if frame_counter == 1:
+        dela_distance_particle_object = 0
+    # on the first frame we make sure that the model is not rewarded for the change in distance between the
+    #particle and the object, as there is no previous distance to compare to
 
 
     # Calculate reward
@@ -281,6 +289,8 @@ while running:
     delta_particle_distance_to_object =  previous_particle_distance_to_object - particle_distance_to_object
 
     previous_particle_distance_to_object = particle_distance_to_object
+    if frame_counter == 1:
+        delta_particle_distance_to_object = 0
     #we need to be RESETTING reward every time the agent chooses a new action, so reward should ADD UP for a
     #givin action, and then be reset when the agent takes a new action, then be ADDED up again for the next action
     reward= reward + calculate_reward(particle_list,
@@ -316,13 +326,23 @@ while running:
 
     #this checks to see if we have won
     done = np.linalg.norm(object.position - target_pos) < (object_radius + target_radius)
-    # Store experience in the replay buffer
-    if frame_counter % action_selection_frequency == 0:
+    # Store experience in the replay buffer, we want to do this the frame RIGHT BEFORE we take a new action
+    if frame_counter == actionFrame + action_selection_frequency:
         #next_state is the state that the action (calculated earlier) HAS TAKEN YOU TO.
         #we only need to calculate this when we are about to take a new action, becasue
-        next_state = get_state(particle_list, object, target_pos)
-
-        replay_buffer.add(current_state, action, reward, next_state, done)
+        state_list.append(get_state(particle_list, object, target_pos))
+        if frame_counter ==1:
+            action=np.zeros(action_size)
+            #state_list[-2] is the state the particle was in BEFORE taking the action, and 
+            #statelist[-1] is the state the particle is in AFTER taking the action
+        
+        #we dont want overwhelmingly bad choices to overshadow small good choices, so if the agent made
+        #choices that resulted in a negative reward, we want to set that reward to 0
+        if reward < 0:
+            reward = 0
+        replay_buffer.add(state_list[-2], action, reward, state_list[-1], done)
+        state_list.clear()
+        #only need to store the state before a taken action, and the state after a taken action
         print(reward)
         reward = 0 #reset reward after adding to the replay buffer so we can calculate the reward for the next action
 
