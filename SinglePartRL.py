@@ -6,8 +6,8 @@ from tensorflow.keras.layers import Dense
 from tensorflow.keras.optimizers import Adam
 from collections import deque
 import random
-from auxFunctionsAndObjects import handle_collisions
-from auxFunctionsAndObjects import particle
+from sim_physics import handle_collisions
+from sim_physics import particle
 import os
 
 # Suppress TensorFlow INFO and WARNING messages
