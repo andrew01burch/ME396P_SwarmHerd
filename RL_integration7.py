@@ -80,8 +80,8 @@ def apply_actions(actions, particle_list, object):
 
         # Apply the new force to the particle
         # Assuming actions are now the force magnitudes
-        force_magnitude = actions[i*2:(i+1)*2]
-        particle.force = direction * force_magnitude
+        force = actions[i*2:(i+1)*2]
+        particle.force = force
 
 # Reward function emphasizing time and total movement
 def calculate_reward(particle_list, object, target_pos, start_time, current_time, collision_with_object, collision_between_particles, previous_particle_distances, current_particle_distances):
@@ -256,7 +256,7 @@ def train_model(model, replay_buffer, batch_size, gamma):
             target = (reward + gamma * np.amax(model.predict(next_state.reshape(1, -1), verbose = 0)[0]))
         target_f = model.predict(state.reshape(1, -1), verbose = 0)
         target_f[0][np.argmax(action)] = target
-        model.fit(state.reshape(1, -1), target_f, epochs=1, verbose = 0)  
+        model.fit(state.reshape(1, -1), target_f, epochs=5, verbose = 0)  
 
 # Initialize particle list and object
 # Initialize particle list with initial force towards the object

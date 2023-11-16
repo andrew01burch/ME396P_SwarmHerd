@@ -103,7 +103,7 @@ class particle:
 object=particle(position=object_pos, radius=object_radius, mass = 50)
 
 # for now the cursor is treated like a particle so we can play around with physics, will remove later
-cursor=particle(position=np.array(pygame.mouse.get_pos()), mass = 10)
+cursor=particle(position=np.array(pygame.mouse.get_pos()), mass = 10, radius = 50)
 
 # creating a list of 20 particle objects all with random initial positions
 particle_list=[]
