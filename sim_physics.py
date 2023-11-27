@@ -1,3 +1,14 @@
+import pygame
+import numpy as np
+import tensorflow as tf  # Import TensorFlow
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.optimizers import Adam
+from collections import deque
+import random
+
+WIDTH, HEIGHT = 800, 600
+friction_coefficient = -0.05
 
 # Class definition for particles
 class particle:

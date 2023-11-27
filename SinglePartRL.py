@@ -60,7 +60,7 @@ gamma = 0.99  # Discount factor for future rewards
 action_selection_frequency = 50  # Number of frames to wait before selecting a new action, made this 5 just to see how the model reacts
 frame_counter = 0  # Counter to keep track of frames
 collision_occurred = False
-initial_force_magnitude = 10.0  # Adjust the magnitude of the initial force as needed
+initial_force_magnitude = 1.0  # Adjust the magnitude of the initial force as needed
 training_old_model = False
 
 # Define the neural network for RL
@@ -87,11 +87,11 @@ def get_state(particle_list, object, target_pos):
 # Function to apply actions to the particles
 def apply_actions(actions, particle_list, object):
     for i, particle in enumerate(particle_list):
-        # Calculate direction vector from particle to object
-        direction = object.position - particle.position
-        direction_norm = np.linalg.norm(direction)
-        if direction_norm > 0:
-            direction /= direction_norm  # Normalize the direction vector
+        # # Calculate direction vector from particle to object
+        # direction = object.position - particle.position
+        # direction_norm = np.linalg.norm(direction)
+        # if direction_norm > 0:
+        #     direction /= direction_norm  # Normalize the direction vector
 
         # Apply the new force to the particle
         # Assuming actions are now the force magnitudes
@@ -125,6 +125,7 @@ def reset_simulation(particle_list, object, sim_iter):
 
 class ReplayBuffer:
     def __init__(self, capacity=10000):
+        self.capacity = capacity
         self.buffer = deque(maxlen=capacity)
     
     def add(self, state, action, reward, next_state, done):
@@ -135,6 +136,11 @@ class ReplayBuffer:
 
     def size(self):
         return len(self.buffer)
+    
+    def __str__(self):
+        buffer_contents = ', '.join([str(item) for item in list(self.buffer)])
+        return f"ReplayBuffer (Size: {self.size()}/{self.capacity}) Contents: [{buffer_contents}]"
+        # return buffer_contents
 
 def train_model(model, replay_buffer, batch_size, gamma):
     if replay_buffer.size() < batch_size:
@@ -193,6 +199,8 @@ def calculate_reward(particle_list,
     dela_distance_particle_object,
     previous_distance_to_target,
     delta_particle_distance_to_object):
+
+    reward = 0
     
     # Base components
     # time_penalty = current_time - start_time
@@ -223,7 +231,7 @@ def calculate_reward(particle_list,
     #we dont want actions that produce negative reward to hide actions that produce positive reward
 
 
-    print(reward)
+    # print(reward)
     return reward #distance_from_object_to_target, having reward ONLY return reward, as far as I can tell 
                     #the other variable is used nowhere else in the code
 # Define the maximum duration for a successful run (in milliseconds)
@@ -247,7 +255,7 @@ while running:
                 running = False
 
     # Handle collisions and move particles
-    handle_collisions(particle_list, object)
+    handle_collisions(particle_list + [object])
 
     if frame_counter % action_selection_frequency == 0:
         # the state you START at before taking this action
@@ -302,7 +310,6 @@ while running:
     dela_distance_particle_object,
     previous_distance_to_target,
     delta_particle_distance_to_object)
-
 
     # Update previous_particle_distances for the next iteration
     #no longer needed becasue we are saving particledistances as a list
