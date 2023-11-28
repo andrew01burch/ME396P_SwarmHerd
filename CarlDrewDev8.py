@@ -46,7 +46,7 @@ epsilon_min = 0.01  # Minimum exploration probability
 epsilon_decay = 0.995  # Exponential decay rate for exploration prob
 
 # Hyperparameters
-n_particles = 10
+n_particles = 1
 friction_coefficient = -0.05
 state_size = n_particles * 4 + 4 + 2  # position and velocity for each particle + object position and velocity + target position
 action_size = n_particles * 2  # 2D force vector for each particle
@@ -317,6 +317,7 @@ while running:
     if np.random.rand() <= epsilon:
         # Random actions for each particle
         action = np.random.randn(action_size)
+        #I THINK: each action is a vector of size 2, first value is force in x, second value is force in the y??
     else:
         # Model prediction for all particles
         action = model.predict(current_state.reshape(1, -1), verbose = 0).flatten()

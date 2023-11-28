@@ -87,14 +87,13 @@ def get_state(particle_list, object, target_pos):
 # Function to apply actions to the particles
 def apply_actions(actions, particle_list, object):
     for i, particle in enumerate(particle_list):
-        # Calculate direction vector from particle to object
-        direction = object.position - particle.position
-        direction_norm = np.linalg.norm(direction)
-        if direction_norm > 0:
-            direction /= direction_norm  # Normalize the direction vector
-
         # Apply the new force to the particle
         # Assuming actions are now the force magnitudes
+
+        #what this should do is take the action vector and split it up in such a way that
+        #each particle gets a force vector made up of 2 components, an x and y component.
+        #Carl is only testing this for the single particle case so I trust that this works as intended
+        #with multiple particles
         force_magnitude = actions[i*2:(i+1)*2]
         particle.force = force_magnitude
 
@@ -167,21 +166,7 @@ for _ in range(n_particles):
     # Create particle with initial force
     new_particle = particle(mass=10, position=position)
     particle_list.append(new_particle)
-object = particle(position=object_pos, radius=object_radius, mass=50)
 
-collision_occurred_with_object = False
-collision_occurred_between_particles = False
-
-#Initialize replay buffer
-replay_buffer = ReplayBuffer(capacity=50000)
-batch_size = 10
-
-# Initialize last chosen action
-last_action = np.zeros(action_size)
-
-# Initialize previous_distance_to_target and particle distance to object
-previous_distance_to_target = np.linalg.norm(object_pos - target_pos)
-previous_particle_distance_to_object = np.linalg.norm(particle_list[0].position - object.position)
 
 
 def calculate_reward(particle_list,
@@ -201,26 +186,49 @@ def calculate_reward(particle_list,
 
     # Current distance between object and target
     distance_from_object_to_target = np.linalg.norm(object.position - target_pos)
+
     #change in disctnace between object and target
     delta_distance_to_target = previous_distance_to_target - distance_from_object_to_target
+
     #setting the new distance as the old distance to recalculate for the next loop
     previous_distance_to_target = distance_from_object_to_target
+
     #if delta_distance_to_target is negative, we are closer to the target and want to reward our model
     #reward = (delta_distance_to_target)*10
     
-    
+    #right now the ONLY thing that affects reward is how an action effects the distance between the particle and the obejct.
+    #this is not ideal, but for now I want to show that I have a model that commands the particle to move tword the object.
     reward = delta_particle_distance_to_object*10
-    #we dont want actions that produce negative reward to hide actions that produce positive reward
 
 
     #print(reward)
     return reward #distance_from_object_to_target, having reward ONLY return reward, as far as I can tell 
                     #the other variable is used nowhere else in the code
+
+
+
+#the following statements surrounded by //'s are used to initalize variables before the game loop
+#/////////////////////////////////////////////////////////////////////////////////////////
+object = particle(position=object_pos, radius=object_radius, mass=50)
+
+collision_occurred_with_object = False
+collision_occurred_between_particles = False
+
+#Initialize replay buffer
+replay_buffer = ReplayBuffer(capacity=50000)
+batch_size = 10
+
+# Initialize last chosen action
+last_action = np.zeros(action_size)
+
+# Initialize previous_distance_to_target and particle distance to object
+previous_distance_to_target = np.linalg.norm(object_pos - target_pos)
+previous_particle_distance_to_object = np.linalg.norm(particle_list[0].position - object.position)
+
 # Define the maximum duration for a successful run (in milliseconds)
 consecutive_successes = 0
-max_success_frames = 600 #frames
+max_success_frames = 6000 #this is the amount of frames that the simulation runs before we stop the simulation and train the model on the experiences it has had so far
 reward = 0  # Initialize reward at zero
-
 actionFrame = 0 #initalized so we dont crash on the first frame
 state_list = []
 # Main simulation loop
@@ -228,6 +236,9 @@ running = True
 start_time = pygame.time.get_ticks()
 sim_iter = 1
 particle_distances_to_object=[]
+#/////////////////////////////////////////////////////////////////////////////////////////
+
+
 while running:
     
     if visualize:
@@ -241,17 +252,32 @@ while running:
     # Handle collisions and move particles
     handle_collisions(particle_list, object)
 
+    # what this if statement does is makes sure we select a new action 
+    #every action_selection_frequency frames, so in this case every 50 frames.
+    #essentally what this means is that a force is applied to the particle every 50 frames
+    #weather that force is stochastic or predicted by the model is determined by an if/else statement
     if frame_counter % action_selection_frequency == 0:
         actionFrame = frame_counter
         # the state you START at before taking this action
         state_list.append(get_state(particle_list, object, target_pos))
         if training_old_model == False:
+
+#/////////////////////READ BELOW/////////////////////////////
+            #what this following if/else statement does is uses epsilon to decide if we are going to explore and pick a random
+            #action, or if we are going to exploit and use our model's policy to predict an action. When the model is
+            #first training, epsilon is 1, so we will always explore. As the model trains, epsilon decays, so
+            #we will explore less and use the model's policy (AKA exploit) more. Ideally this means that our model will have a large amount
+            #of experiences to learn from before we call on it to make any decisions, and then will start to 
+            #exploit what it has learned when it has learned a policy from a large amount of explored experiences.
+            #TLDR: we EXPLORE when we need to learn our system for data, and we EXPLOIT when we have learned a
+            #policy that should be in the ballpark of preforming well.
+#//////////////////////READ ABOVE////////////////////////////
             if np.random.rand() <= epsilon:
             # Choose a random force magnitude for exploration
                 action = np.random.randn(n_particles * 2)  # Random values for each force dimension
-        else:
+            else:
             # Predict force magnitude based on model for exploitation
-            action = model.predict(state_list[-1].reshape(1, -1), verbose = 0).flatten()
+                action = model.predict(state_list[-1].reshape(1, -1), verbose = 0).flatten()
 
 
         # Decay the epsilon value
@@ -265,7 +291,7 @@ while running:
     #need to do this here or else we will be appending the same state to the state list twice
     frame_counter += 1
 
-    # Update physics of particles and object
+    # Update physics(position/velocity) of particles and object, this is the same as udapting the state of the system
     for particle in particle_list:
         particle.physics_move()
     object.physics_move()
@@ -335,9 +361,6 @@ while running:
             action=np.zeros(action_size)
             #state_list[-2] is the state the particle was in BEFORE taking the action, and 
             #statelist[-1] is the state the particle is in AFTER taking the action
-        
-        #we dont want overwhelmingly bad choices to overshadow small good choices, so if the agent made
-        #choices that resulted in a negative reward, we want to set that reward to 0
         replay_buffer.add(state_list[-2], action, reward, state_list[-1], done)
         state_list.clear()
         #only need to store the state before a taken action, and the state after a taken action
