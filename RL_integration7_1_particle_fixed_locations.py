@@ -5,12 +5,12 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Flatten
 from tensorflow.keras.optimizers import Adam
 
-from rl.agents import DQNAgent
-from rl.policy import BoltzmannQPolicy
+from rl.agents import DDPGAgent #we use DDPG as our agent becasue we have a continuous action space
+from rl.policy import BoltzmannQPolicy #frankly 
 from rl.memory import SequentialMemory
 
 from collections import deque
-import random
+import random   
 import os
 
 # Suppress TensorFlow INFO and WARNING messages
