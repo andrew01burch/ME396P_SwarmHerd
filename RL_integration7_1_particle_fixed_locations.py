@@ -2,12 +2,15 @@ import pygame
 import numpy as np
 import tensorflow as tf  # Import TensorFlow
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense
+from tensorflow.keras.layers import Dense, Flatten
 from tensorflow.keras.optimizers import Adam
+
+from rl.agents import DQNAgent
+from rl.policy import BoltzmannQPolicy
+from rl.memory import SequentialMemory
+
 from collections import deque
 import random
-# from auxFunctionsAndObjects import handle_collisions
-# from auxFunctionsAndObjects import particle
 import os
 
 # Suppress TensorFlow INFO and WARNING messages
@@ -54,7 +57,7 @@ epsilon_min = 0.01  # Minimum exploration probability
 epsilon_decay = 0.995  # Exponential decay rate for exploration prob
 
 # Hyperparameters
-n_particles = 1 #lets try with 1 particle for now
+n_particles = 1 #the this exersise, we will have the ajent control only 1 particle
 friction_coefficient = -0.05
 state_size = n_particles * 4  # position and velocity for each particle
 action_size = n_particles * 2  # 2D force vector for each particle
@@ -66,20 +69,28 @@ collision_occurred = False
 initial_force_magnitude = 10.0  # Adjust the magnitude of the initial force as needed
 training_old_model = False
 
+# Define the neural network for RL
+def build_model(state_size, action_size):
+    model = Sequential()
+    model.add(Flatten(input_shape=(1,state_size)))
+    model.add(Dense(24, activation='relu'))
+    model.add(Dense(24, activation='relu'))
+    model.add(Dense(action_size, activation='linear'))
+    return model
 
-# Define the neural network for RL. if a network already exists in your directory, load it, otherwise create a new one
+
+#if a network already exists in your directory, load it, otherwise create a new one
 for filename in os.listdir(os.getcwd()):
     if filename.startswith("model_p"):
         model = tf.keras.models.load_model(f'{filename}')
         print(f'Using model: {filename}')
         training_old_model = True
     else:
-        model = Sequential([
-            Dense(64, activation='relu', input_shape=(state_size,)),
-            Dense(64, activation='relu'),
-            Dense(action_size, activation='tanh')  # Force vector in range [-1, 1]
-        ])
+        model = build_model(state_size,action_size)
         model.compile(loss='mse', optimizer=Adam(learning_rate))
+
+
+
 
 # Class definition for particles
 class particle:
@@ -230,7 +241,7 @@ def train_model(model, replay_buffer, batch_size, gamma):
             target = (reward + gamma * np.amax(model.predict(next_state.reshape(1, -1), verbose = 0)[0]))
         target_f = model.predict(state.reshape(1, -1), verbose = 0)
         target_f[0][np.argmax(action)] = target
-        model.fit(state.reshape(1, -1), target_f, epochs=1)  
+        model.fit(state.reshape(1, -1), target_f, epochs=1)
 
 # Initialize particle list and object
 # Initialize particle list with initial force towards the object
