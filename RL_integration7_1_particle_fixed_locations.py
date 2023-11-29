@@ -80,7 +80,7 @@ def build_model(state_size, action_size):
         Flatten(input_shape=(state_size,)),
         (Dense(24, activation='relu')),
         (Dense(24, activation='relu')),
-        (Dense(action_size, activation='liniar'))
+        (Dense(action_size, activation='linear'))
     ])
     model.compile(loss='mse', optimizer=Adam(learning_rate))
     return model
@@ -334,6 +334,7 @@ sim_iter = 1
 particle_distances_to_object=[]
 #/////////////////////////////////////////////////////////////////////////////////////////
 
+
 # Main simulation loop
 while running:
     
@@ -428,8 +429,8 @@ while running:
     previous_particle_distance_to_object = particle_distance_to_object
     if frame_counter == 1:
         delta_particle_distance_to_object = 0
-    #we need to be RESETTING reward every time the agent chooses a new action, so reward should ADD UP for a
-    #givin action, and then be reset when the agent takes a new action, then be ADDED up again for the next action
+    
+
     reward= reward + calculate_reward(particle_list,
     object,
     target_pos,
@@ -463,10 +464,11 @@ while running:
 
     #this checks to see if we have won
     done = np.linalg.norm(object.position - target_pos) < (object_radius + target_radius)
-    # Store experience in the replay buffer, we want to do this the frame RIGHT BEFORE we take a new action
+
+    # Store experience in the replay buffer, we want to do this the frame RIGHT BEFORE we take a new action.
+    #this is the second part of our agent (essentally)
     if frame_counter == actionFrame + action_selection_frequency:
-        #next_state is the state that the action (calculated earlier) HAS TAKEN YOU TO.
-        #we only need to calculate this when we are about to take a new action, becasue
+        #the below line gets us the state that the action we took action_selection_frequency ago TOOK us to
         state_list.append(get_state(particle_list, object, target_pos))
         if frame_counter ==1:
             action=np.zeros(action_size)
@@ -496,7 +498,6 @@ while running:
         
     elif frame_counter >= max_success_frames:
         print('That didnt quite work... lets try again.')
-        #printing reward here is meaninlgess, as reward should be tied to a single action
         consecutive_successes = 0  # Reset if the task was not completed in time
         #Train model with accumulated experiences
         train_model(model, replay_buffer, batch_size, gamma)
