@@ -58,7 +58,7 @@ epsilon_decay = 0.995  # Exponential decay rate for exploration prob
 # Hyperparameters
 n_particles = 1 #the this exersise, we will have the agent control only 1 particle
 friction_coefficient = -0.05
-state_size = n_particles * 4  # position and velocity for each particle
+state_size = n_particles * 2  # position and velocity for each particle
 action_size = n_particles * 4  # 2D force vector for each particle
 learning_rate = 0.005
 gamma = 0.99  # Discount factor for future rewards
