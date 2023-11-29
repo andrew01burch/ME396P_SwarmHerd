@@ -5,12 +5,11 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Flatten
 from tensorflow.keras.optimizers import Adam
 
-from rl.agents import DDPGAgent #we use DDPG as our agent becasue we have a continuous action space
-from rl.policy import BoltzmannQPolicy #frankly 
+#from rl.agents import DDPGAgent #we use DDPG as our agent becasue we have a continuous action space and a continuous state space. see documentation: https://keras-rl.readthedocs.io/en/latest/agents/overview/
 from rl.memory import SequentialMemory
 
 from collections import deque
-import random   
+import random
 import os
 
 # Suppress TensorFlow INFO and WARNING messages
@@ -57,25 +56,33 @@ epsilon_min = 0.01  # Minimum exploration probability
 epsilon_decay = 0.995  # Exponential decay rate for exploration prob
 
 # Hyperparameters
-n_particles = 1 #the this exersise, we will have the ajent control only 1 particle
+n_particles = 1 #the this exersise, we will have the agent control only 1 particle
 friction_coefficient = -0.05
 state_size = n_particles * 4  # position and velocity for each particle
 action_size = n_particles * 2  # 2D force vector for each particle
 learning_rate = 0.005
 gamma = 0.99  # Discount factor for future rewards
-action_selection_frequency = 50  # Number of frames to wait before selecting a new action, made this 5 just to see how the model reacts
+action_selection_frequency = 50  # Number of frames to wait before selecting a new action
 frame_counter = 0  # Counter to keep track of frames
 collision_occurred = False
-initial_force_magnitude = 10.0  # Adjust the magnitude of the initial force as needed
 training_old_model = False
 
-# Define the neural network for RL
+# Define the neural network for RL. 
+#the important things that we've learned about building networks is:
+#1) make sure that the input layor is the same size as the state size
+#2) make sure that the output layer is the same size as the action size
+#3) MSE is the bess loss function for RL problems
+#4) we can squash the outputs of the network to be values between -1 and 1 with a tanh activation function on the output layor
+    #note we dont do that at this point.
+#5) you want the amount of neurons in dense layors to be between the input and output size, but this is not a hard rule
 def build_model(state_size, action_size):
-    model = Sequential()
-    model.add(Flatten(input_shape=(1,state_size)))
-    model.add(Dense(24, activation='relu'))
-    model.add(Dense(24, activation='relu'))
-    model.add(Dense(action_size, activation='linear'))
+    model = Sequential([
+        Flatten(input_shape=(state_size,)),
+        (Dense(24, activation='relu')),
+        (Dense(24, activation='relu')),
+        (Dense(action_size, activation='liniar'))
+    ])
+    model.compile(loss='mse', optimizer=Adam(learning_rate))
     return model
 
 
@@ -87,7 +94,6 @@ for filename in os.listdir(os.getcwd()):
         training_old_model = True
     else:
         model = build_model(state_size,action_size)
-        model.compile(loss='mse', optimizer=Adam(learning_rate))
 
 
 
@@ -254,9 +260,6 @@ for _ in range(n_particles):
     direction_to_object = object_pos - position
     direction_to_object /= np.linalg.norm(direction_to_object)  # Normalize the direction
 
-    # Set initial force towards the object DONT DO THIS, WE WANT TO START WITH NO FORCE
-    #initial_force = direction_to_object * initial_force_magnitude
-
     # Create particle with initial force
     new_particle = particle(mass=10, position=position)
     particle_list.append(new_particle)
@@ -325,14 +328,13 @@ max_success_frames = 6000 #this is the amount of frames that the simulation runs
 reward = 0  # Initialize reward at zero
 actionFrame = 0 #initalized so we dont crash on the first frame
 state_list = []
-# Main simulation loop
 running = True
 start_time = pygame.time.get_ticks()
 sim_iter = 1
 particle_distances_to_object=[]
 #/////////////////////////////////////////////////////////////////////////////////////////
 
-
+# Main simulation loop
 while running:
     
     if visualize:
@@ -354,8 +356,6 @@ while running:
         actionFrame = frame_counter
         # the state you START at before taking this action
         state_list.append(get_state(particle_list, object, target_pos))
-        #if we are using a model that has already been trained, we 
-        if training_old_model == False:
 
 #/////////////////////READ BELOW/////////////////////////////
             #what this following if/else statement does is uses epsilon to decide if we are going to explore and pick a random
@@ -366,14 +366,30 @@ while running:
             #exploit what it has learned when it has learned a policy from a large amount of explored experiences.
             #TLDR: we EXPLORE when we need to learn our system for data, and we EXPLOIT when we have learned a
             #policy that should be in the ballpark of preforming well.
+            #essentally, the below statement is the decision-maker component of our agent.
 #//////////////////////READ ABOVE////////////////////////////
+        if training_old_model == False:
             if np.random.rand() <= epsilon:
             # Choose a random force magnitude for exploration
                 action = np.random.randn(n_particles * 2)  # Random values for each force dimension
             else:
             # Predict force magnitude based on model for exploitation
                 action = model.predict(state_list[-1].reshape(1, -1), verbose = 0).flatten()
-
+        else:
+#/////////////////////READ BELOW/////////////////////////////
+            #even if we start with a trained model, we STILL want SOME 
+            #schochasticity to play a role in the choices we make, so that our model will explore 
+            #and continue to learn. but becasue we are using a model that has already 
+            #been trained in the past, we want to explore less and exploit more. 
+            #so we will scale down epsilon when we are using a prevoiusly trained model.
+            #dividing epsolon by 2 doubles the chance that we will exploit instead of explore.
+            #technically this is a hyperparameter that we can tune, but at this point there
+            #are so many hyperparamaters that I need to hold some of them constent.
+#//////////////////////READ ABOVE////////////////////////////
+            if np.random.rand() <= epsilon/2:
+                action = np.random.randn(n_particles * 2)
+            else:
+                action = model.predict(state_list[-1].reshape(1, -1), verbose = 0).flatten()
 
         # Decay the epsilon value
         epsilon = max(epsilon_min, epsilon_decay * epsilon)
