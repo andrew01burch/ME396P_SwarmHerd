@@ -6,15 +6,18 @@ from tensorflow.keras.layers import Dense
 from tensorflow.keras.optimizers import Adam
 from collections import deque
 import random
-from auxFunctionsAndObjects import handle_collisions
-from auxFunctionsAndObjects import particle
+# from auxFunctionsAndObjects import handle_collisions
+# from auxFunctionsAndObjects import particle
 import os
 
 # Suppress TensorFlow INFO and WARNING messages
 tf.get_logger().setLevel('ERROR')
 
 #decide to visualize the game or not (for training purposes)
-visualize = True
+user_input = input("Do you want to visualize? (yes/no):")
+
+# Set visualize to True if user input is 'yes', False otherwise.
+visualize = user_input.lower() == 'yes'
 
 # Screen dimensions, need these if we are to visualize or not
 WIDTH, HEIGHT = 800, 600
@@ -53,7 +56,7 @@ epsilon_decay = 0.995  # Exponential decay rate for exploration prob
 # Hyperparameters
 n_particles = 1 #lets try with 1 particle for now
 friction_coefficient = -0.05
-state_size = n_particles * 4 + 6  # position and velocity for each particle + object position and velocity + target position
+state_size = n_particles * 4  # position and velocity for each particle
 action_size = n_particles * 2  # 2D force vector for each particle
 learning_rate = 0.005
 gamma = 0.99  # Discount factor for future rewards
@@ -63,7 +66,8 @@ collision_occurred = False
 initial_force_magnitude = 10.0  # Adjust the magnitude of the initial force as needed
 training_old_model = False
 
-# Define the neural network for RL
+
+# Define the neural network for RL. if a network already exists in your directory, load it, otherwise create a new one
 for filename in os.listdir(os.getcwd()):
     if filename.startswith("model_p"):
         model = tf.keras.models.load_model(f'{filename}')
@@ -77,11 +81,90 @@ for filename in os.listdir(os.getcwd()):
         ])
         model.compile(loss='mse', optimizer=Adam(learning_rate))
 
+# Class definition for particles
+class particle:
+    def __init__(self, mass=1.0, position=np.array([0.0, 0.0]), radius=5.0, velocity=np.array([0.0, 0.0]), force=np.array([0.0, 0.0])):
+        self.position = position.astype(float)
+        self.force = force.astype(float)
+        self.radius = float(radius)
+        self.velocity = velocity.astype(float)
+        self.mass = float(mass)
+        self.hit_wall = False
+        
+    def physics_move(self):
+        self.hit_wall = False
+        # Collision with boundaries and physics updates...
+        # Collision with left or right boundary
+        if self.position[0] - self.radius < 0 or self.position[0] + self.radius > WIDTH:
+            self.velocity[0] = -self.velocity[0]
+            self.position[0] = np.clip(self.position[0], self.radius, WIDTH - self.radius)
+            self.hit_wall = True
+        if self.position[1] - self.radius < 0 or self.position[1] + self.radius > HEIGHT:
+            self.velocity[1] = -self.velocity[1]
+            self.position[1] = np.clip(self.position[1], self.radius, HEIGHT - self.radius)
+            self.hit_wall = True
+            
+        # Calculate acceleration from force
+        acceleration = self.force / self.mass
+
+        # Update velocity with acceleration
+        self.velocity += acceleration
+
+        # Apply friction to the velocity
+        self.velocity += friction_coefficient * self.velocity
+
+        if np.linalg.norm(self.velocity) < 0.05:
+            self.velocity = np.zeros_like(self.velocity)
+
+        # Update position with velocity
+        self.position = self.position +  self.velocity
+
+def is_collision(particle1, particle2):
+    distance = np.linalg.norm(particle1.position - particle2.position)
+    return distance < (particle1.radius + particle2.radius)
+                
+                
+def handle_collisions(particles, object, restitution_coefficient=1):
+    global collision_occurred_with_object, collision_occurred_between_particles
+    collision_occurred_with_object = False
+    collision_occurred_between_particles = False
+
+    def update_positions_and_velocities(particle1, particle2, is_object=False):
+        distance_vector = particle1.position - particle2.position
+        collision_direction = distance_vector / np.linalg.norm(distance_vector)
+        total_mass = particle1.mass + particle2.mass
+
+        overlap = (particle1.radius + particle2.radius) - np.linalg.norm(distance_vector)
+        particle1.position += (overlap * (particle2.mass / total_mass)) * collision_direction
+        particle2.position -= (overlap * (particle1.mass / total_mass)) * collision_direction
+
+        relative_velocity = particle1.velocity - particle2.velocity
+        velocity_along_collision = np.dot(relative_velocity, collision_direction)
+
+        if velocity_along_collision > 0:
+            impulse = (2 * velocity_along_collision / total_mass) * restitution_coefficient
+            particle1.velocity -= (impulse * particle2.mass) * collision_direction
+            particle2.velocity += (impulse * particle1.mass) * collision_direction
+
+    # Check for collisions among particles
+    for i in range(len(particles)):
+        for j in range(i + 1, len(particles)):
+            if is_collision(particles[i], particles[j]):
+                collision_occurred_between_particles = True
+                update_positions_and_velocities(particles[i], particles[j])
+
+    # Check for collisions between particles and the object
+    for particle in particles:
+        if is_collision(particle, object):
+            collision_occurred_with_object = True
+            update_positions_and_velocities(particle, object, is_object=True)
+
 # Function to extract the current state
 def get_state(particle_list, object, target_pos):
-    particle_states = np.concatenate([p.position for p in particle_list] + [p.velocity for p in particle_list])
-    object_state = np.concatenate([object.position, object.velocity])
-    state = np.concatenate([particle_states, object_state, target_pos])
+    state = np.concatenate([p.position for p in particle_list] + [p.velocity for p in particle_list])
+    # particle_states = np.concatenate([p.position for p in particle_list] + [p.velocity for p in particle_list])
+    # object_state = np.concatenate([object.position, object.velocity])
+    # state = np.concatenate([particle_states, object_state, target_pos])
     return state
 
 # Function to apply actions to the particles
@@ -260,6 +343,7 @@ while running:
         actionFrame = frame_counter
         # the state you START at before taking this action
         state_list.append(get_state(particle_list, object, target_pos))
+        #if we are using a model that has already been trained, we 
         if training_old_model == False:
 
 #/////////////////////READ BELOW/////////////////////////////
