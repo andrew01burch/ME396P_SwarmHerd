@@ -12,7 +12,7 @@ tf.get_logger().setLevel('ERROR')
 
 # Screen dimensions
 WIDTH, HEIGHT = 800, 600
-visualize = False
+visualize = True
 
 if visualize:
     WHITE = (255, 255, 255)
@@ -191,14 +191,14 @@ def apply_actions(action, particle):
     
 
 # Function to calculate reward
-def calculate_reward(particle, object_push, target_pos, collision_occurred, starting_distance):
+def calculate_reward(particle, object_push, target_pos, collision_occurred_with_object, starting_distance):
     distance_to_target = np.linalg.norm(object_push.position - target_pos)
     reward = (starting_distance - distance_to_target) * 10  # Reward for getting closer
 
     if particle.hit_wall:
         reward -= 25  # Penalty for hitting a wall
 
-    if collision_occurred:
+    if collision_occurred_with_object:
         reward += 2000  # Reward for pushing the object
 
     return reward
