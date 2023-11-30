@@ -7,6 +7,15 @@ from tensorflow.keras.optimizers import Adam
 from collections import deque
 import random
 
+#/////////////////////READ/////////////////////////////
+# This file is an older swarm attempt.  Not necessarily final or to be graded
+# Demonstrated here is an original attempt before we realized the value of discritization 
+# and the incredible complexities with using a single agent for multiple instances.
+# In each of the dev branches of the repo, you will find questionable file management containing 
+# similar scrpits to this one that contain slightly different attempts to get this to be functional.
+
+# TLDR: This approach never had a chance of working but the code here is sorta interesting
+
 # Initialize pygame
 pygame.init()
 
