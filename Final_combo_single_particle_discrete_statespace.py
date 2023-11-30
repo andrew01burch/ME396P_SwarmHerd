@@ -336,21 +336,22 @@ def calculate_reward(particle_list,
     previous_distance_object_target = distance_from_object_to_target
 
     #we want to reward any action that moves the object closer o the target, 
-    # and punish any action that moves the object away from the target    
+    # and punish any action that moves the object away from the target. this is 
+    #much more important than the particle distance to the object in the context of the 
+    #game, so I weight it more highly then the reward for moving the particle closer to the object
     reward = -delta_distance_from_object_to_target*100
     
     #we also want to reward any action that moves the particle closer to the object,
     #and punish any action that moves the particle away from the object
     reward += delta_particle_distance_to_object*10
 
-    #we want to punish any action that causes the particle hit the wall
+    #we want to punish any action that causes the particle hit the wall. if I am hitting the wall
+    #then the state choice I have made is really bad, so I want to punish it a lot.
     if particle_list[0].hit_wall == True:
         reward = -1000
 
 
-    #print(reward)
-    return reward #distance_from_object_to_target, having reward ONLY return reward, as far as I can tell 
-                    #the other variable is used nowhere else in the code
+    return reward
 
 
 
@@ -364,9 +365,6 @@ collision_occurred_between_particles = False
 #Initialize replay buffer
 replay_buffer = ReplayBuffer(capacity=50000)
 batch_size = 120 #setting batch size to 120 becasue the size of the batches generated in one training sycle is 120.
-
-# Initialize last chosen action
-last_action = np.zeros(action_size)
 
 # Initialize previous_distance_object_target and particle distance to object
 previous_distance_object_target = np.linalg.norm(object_pos - target_pos)
@@ -441,10 +439,9 @@ while running:
         # Decay the epsilon value
         epsilon = max(epsilon_min, epsilon_decay * epsilon)
 
-        last_action = action
 
         # Apply actions to particles
-        apply_actions(last_action, particle_list)
+        apply_actions(action, particle_list)
 
     #need to do this here or else we will be appending the same state to the state list twice
     frame_counter += 1
@@ -461,22 +458,20 @@ while running:
     #SCRIPT THERE IS ONLY 1 PARTICLE
     particle_distance_to_object = np.linalg.norm(particle_list[0].position - object.position)
     dela_distance_particle_object = previous_particle_distance_to_object - particle_distance_to_object
-    if frame_counter == 1:
-        dela_distance_particle_object = 0
+
     # on the first frame we make sure that the model is not rewarded for the change in distance between the
     #particle and the object, as there is no previous distance to compare to
+    if frame_counter == 1:
+        dela_distance_particle_object = 0
 
 
-    # Calculate reward
-    current_time = pygame.time.get_ticks()
-
+    #the below statements are used for reward calculation
     delta_particle_distance_to_object =  previous_particle_distance_to_object - particle_distance_to_object
 
     previous_particle_distance_to_object = particle_distance_to_object
     if frame_counter == 1:
         delta_particle_distance_to_object = 0
     
-
     reward= reward + calculate_reward(particle_list,
     object,
     target_pos,
@@ -514,12 +509,12 @@ while running:
             #statelist[-1] is the state the particle is in AFTER taking the action
         replay_buffer.add(state_list[-2], action, reward, state_list[-1], done)
         state_list.clear()
-        #only need to store the state before a taken action, and the state after a taken action
+        #only need to store the state before a taken action, and the state after a taken action, so we clear statelist after adding the pair of states to the replay buffer
         print(reward)
         reward = 0 #reset reward after adding to the replay buffer so we can calculate the reward for the next action
 
     # Train the model
-    if done:
+    if done: #if we have won
         consecutive_successes += 1
         if consecutive_successes >= 3:
             print("Model training completed.")
