@@ -275,6 +275,9 @@ class ReplayBuffer:
 
     def size(self):
         return len(self.buffer)
+    
+    def clear(self):
+        self.buffer.clear()
 
 
 
