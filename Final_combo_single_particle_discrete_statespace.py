@@ -241,7 +241,6 @@ def apply_actions(action, particle_list):
         
 
 
-# Reward function emphasizing time and total movement
 
 
 def reset_simulation(particle_list, object, sim_iter):
@@ -377,7 +376,6 @@ reward = 0  # Initialize reward at zero
 actionFrame = 0 #initalized so we dont crash on the first frame
 state_list = []
 running = True
-start_time = pygame.time.get_ticks()
 sim_iter = 1
 particle_distances_to_object=[]
 #/////////////////////////////////////////////////////////////////////////////////////////
