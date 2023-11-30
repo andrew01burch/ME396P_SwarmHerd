@@ -21,6 +21,12 @@ user_input = input("Do you want to visualize? (yes/no):")
 # Set visualize to True if user input is 'yes', False otherwise.
 visualize = user_input.lower() == 'yes'
 
+#ask user if they want the model to train more or exploit more
+user_input = input("Do you want your model to explore more or exploit more? (explore/exploit):")
+
+#setting this to true will make the model explore more, setting it to false will make the model exploit more
+training_old_model = user_input.lower() == 'exploit'
+
 # Screen dimensions, need these if we are to visualize or not
 WIDTH, HEIGHT = 800, 600
 if visualize:
@@ -65,7 +71,6 @@ gamma = 0.99  # Discount factor for future rewards
 action_selection_frequency = 50  # Number of frames to wait before selecting a new action
 frame_counter = 0  # Counter to keep track of frames
 collision_occurred = False
-training_old_model = False
 
 # Define the neural network for RL. 
 #the important things that we've learned about building networks is:
@@ -88,7 +93,7 @@ for filename in os.listdir(os.getcwd()):
     if filename.startswith("model_p"):
         model = tf.keras.models.load_model(f'{filename}')
         print(f'Using model: {filename}')
-        training_old_model = True
+        
     else:
         model = build_model(state_size,action_size)
 
@@ -311,10 +316,7 @@ def calculate_reward(particle_list,
     dela_distance_particle_object,
     previous_distance_to_target,
     delta_particle_distance_to_object):
-    # Base components
-    time_penalty = current_time - start_time
-    #movement_penalty = sum(np.linalg.norm(p.velocity) for p in particle_list)
-    #reward = -time_penalty 
+
 
     # Current distance between object and target
     distance_from_object_to_target = np.linalg.norm(object.position - target_pos)
