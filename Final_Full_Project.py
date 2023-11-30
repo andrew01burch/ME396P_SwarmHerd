@@ -75,7 +75,7 @@ collision_occurred = False
 #2) make sure that the output layer is the same size as the action space
 #3) MSE is the bess loss function for RL problems
 #4) There are some papers on how to choose the dimentonality of your network (the size of the hidden layers)
-    #but i dont understand them yet, so I just chose 128 for the hidden layers, any smaller and the model was
+    #but we dont understand them yet, so we just chose 128 for the hidden layers, any smaller and the model was
     #underfitting.
 def build_model(state_size, action_size):
     model = Sequential([
@@ -181,13 +181,13 @@ def handle_collisions(particles, object, restitution_coefficient=1):
 # Function to extract the current state
 def get_state(particle_list, object, target_pos):
 #/////////////////////READ BELOW/////////////////////////////
-    #here I am disctizing the state space. I am doing that becasue I want my network to be able to recognize when
+    #here we are disctizing the state space. We are doing that becasue we want my network to be able to recognize when
     #it is in a location that it has been in before, BUT with a continous state space that is near impossible
     #becasue the model will VERY UNLIKELY be in the EXACT same state twice. by discritizing 
     #the state space from a 800x600 pixel grid into 40x30 grid, the model can learn to recognize a wider range
     #of locations as being in the same "state". Why this matters: if the particle is at location
     #(150,260) in pixels, and it has learned from past experiance that taking the "up" action provides good reward 
-    #at loation (151,262) in pixels, I want it to be able to recognize that going up at location (150,260) will also 
+    #at loation (151,262) in pixels, we want it to be able to recognize that going up at location (150,260) will also 
     #provide good reward and take the up action. if the state space is discritized, then (150,260) and (151,262)
     # WILL BE the same state, so the model will have seen that going up is the right choice at that state before,
     # and hopefully will make the same choice again.
@@ -329,15 +329,15 @@ def calculate_reward(particle_list,
     #we want to reward any action that moves the object closer o the target, 
     # and punish any action that moves the object away from the target. this is 
     #much more important than the particle distance to the object in the context of the 
-    #game, so I weight it more highly then the reward for moving the particle closer to the object
+    #game, so we weight it more highly then the reward for moving the particle closer to the object
     reward = delta_distance_object_target*100
     
     #we also want to reward any action that moves the particle closer to the object,
     #and punish any action that moves the particle away from the object
     reward += delta_particle_distance_to_object*10
 
-    #we want to punish any action that causes the particle hit the wall. if I am hitting the wall
-    #then the state choice I have made is really bad, so I want to punish it a lot.
+    #we want to punish any action that causes the particle hit the wall. If we am hitting the wall
+    #then the state choice we have made is really bad, so we want to punish it a lot.
     if particle_list[0].hit_wall == True:
         reward = -1000
 
@@ -440,7 +440,7 @@ while running:
         particle.physics_move()
     object.physics_move()
 
-    # keeping track of all of the distances between the object and the particles for each frame, I will
+    # keeping track of all of the distances between the object and the particles for each frame, we will
     #use this to calculate the change in distance between the particles and the object in order to reward/punish
     #my model accordingly.
     #CHANGED FROM ITERATING THROUGH ALL PARTICLES TO JUST THE FIRST PARTICLE IN PARTICLE_LIST BECASUE IN THIS

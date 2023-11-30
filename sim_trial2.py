@@ -19,7 +19,7 @@ WIDTH, HEIGHT = 800, 600
 
 # Create the screen and clock objects
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption('Simulation Evironment v1.0')
+pygame.display.set_caption('Simulation Evironment: Use your cursor to interact')
 clock = pygame.time.Clock()
 
 # Object and target settings
@@ -103,7 +103,7 @@ class particle:
 object=particle(position=object_pos, radius=object_radius, mass = 50)
 
 # for now the cursor is treated like a particle so we can play around with physics, will remove later
-cursor=particle(position=np.array(pygame.mouse.get_pos()), mass = 10)
+cursor=particle(position=np.array(pygame.mouse.get_pos()), radius= 50, mass = 10)
 
 # creating a list of 20 particle objects all with random initial positions
 particle_list=[]
