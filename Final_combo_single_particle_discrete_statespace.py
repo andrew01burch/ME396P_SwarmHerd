@@ -246,7 +246,7 @@ def reset_simulation(particle_list, object, sim_iter):
     object.velocity = np.zeros_like(object.velocity)
     for particle in particle_list:
         #lets have our one particle start in a random spot
-        particle.position = np.array([WIDTH // 5, HEIGHT // 5])
+        particle.position = np.array([np.random.uniform(0, WIDTH), np.random.uniform(0, HEIGHT)], dtype=float)
         particle.velocity = np.zeros_like(particle.velocity)
 
     if visualize:
@@ -322,26 +322,14 @@ for _ in range(n_particles):
 
 
 def calculate_reward(particle_list,
-    object,
-    target_pos,
-    previous_distance_object_target,
+    delta_distance_object_target,
     delta_particle_distance_to_object):
-
-
-    # Current distance between object and target
-    distance_from_object_to_target = np.linalg.norm(object.position - target_pos)
-
-    #change in disctnace between object and target
-    delta_distance_from_object_to_target = previous_distance_object_target - distance_from_object_to_target
-
-    #setting the new distance as the old distance to recalculate for the next loop
-    previous_distance_object_target = distance_from_object_to_target
 
     #we want to reward any action that moves the object closer o the target, 
     # and punish any action that moves the object away from the target. this is 
     #much more important than the particle distance to the object in the context of the 
     #game, so I weight it more highly then the reward for moving the particle closer to the object
-    reward = -delta_distance_from_object_to_target*100
+    reward = delta_distance_object_target*100
     
     #we also want to reward any action that moves the particle closer to the object,
     #and punish any action that moves the particle away from the object
@@ -371,6 +359,7 @@ batch_size = 120 #setting batch size to 120 becasue the size of the batches gene
 # Initialize previous_distance_object_target and particle distance to object
 previous_distance_object_target = np.linalg.norm(object_pos - target_pos)
 previous_particle_distance_to_object = np.linalg.norm(particle_list[0].position - object.position)
+previous_distance_object_target = np.linalg.norm(object.position - target_pos)
 
 # Define the maximum duration for a successful run (in milliseconds)
 consecutive_successes = 0
@@ -460,6 +449,8 @@ while running:
     particle_distance_to_object = np.linalg.norm(particle_list[0].position - object.position)
     dela_distance_particle_object = previous_particle_distance_to_object - particle_distance_to_object
 
+    object_distance_to_target = np.linalg.norm(object.position - target_pos)
+    delta_distance_object_target = previous_distance_object_target - object_distance_to_target
     # on the first frame we make sure that the model is not rewarded for the change in distance between the
     #particle and the object, as there is no previous distance to compare to
     if frame_counter == 1:
@@ -469,21 +460,19 @@ while running:
     #the below statements are used for reward calculation
     delta_particle_distance_to_object =  previous_particle_distance_to_object - particle_distance_to_object
 
-    previous_particle_distance_to_object = particle_distance_to_object
+
+    current_distance_object_target = np.linalg.norm(object.position - target_pos)
     if frame_counter == 1:
         delta_particle_distance_to_object = 0
     
     reward= reward + calculate_reward(particle_list,
-    object,
-    target_pos,
-    previous_distance_object_target,
+    delta_distance_object_target,
     delta_particle_distance_to_object)
 
 
     # now that reward is calculated, set the current distance between the particle and the object my new previous distance
     previous_particle_distance_to_object = particle_distance_to_object
-    
-    
+    previous_distance_object_target = current_distance_object_target
     if visualize:
         pygame.draw.rect(screen, BLACK, (0, 0, WIDTH, HEIGHT), 2)
         pygame.draw.circle(screen, BLUE, center=(object.position[0], object.position[1]), radius=object.radius)
