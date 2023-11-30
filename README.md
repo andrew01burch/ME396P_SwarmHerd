@@ -9,3 +9,5 @@ This project aims to design and implement a simulated swarm of robot agents that
 Main problem: Implement adaptive learning mechanisms to accomplish cooperation out of multiple entities without a centralized controller.
 
 Additionally, we may expand into looking at constrained agents for additional uniqueness.
+
+

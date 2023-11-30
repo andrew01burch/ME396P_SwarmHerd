@@ -5,9 +5,6 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Flatten
 from tensorflow.keras.optimizers import Adam
 
-#from rl.agents import DDPGAgent #we use DDPG as our agent becasue we have a continuous action space and a continuous state space. see documentation: https://keras-rl.readthedocs.io/en/latest/agents/overview/
-from rl.memory import SequentialMemory
-
 from collections import deque
 import random
 import os
@@ -59,7 +56,7 @@ target_pos = np.array([WIDTH // 2, HEIGHT //4])
 # Exploration parameters
 epsilon = 1.0  # Exploration rate
 epsilon_min = 0.01  # Minimum exploration probability
-epsilon_decay = 0.995  # Exponential decay rate for exploration prob
+epsilon_decay = 0.9995  # Exponential decay rate for exploration prob.
 
 # Hyperparameters
 n_particles = 1 #the this exersise, we will have the agent control only 1 particle
