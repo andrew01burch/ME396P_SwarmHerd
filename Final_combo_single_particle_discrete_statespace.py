@@ -22,7 +22,7 @@ user_input = input("Do you want to visualize? (yes/no):")
 visualize = user_input.lower() == 'yes'
 
 #ask user if they want the model to train more or exploit more
-user_input = input(" if a model already exists in your directory, it will be used. if not a new model will automatically be created. Do you want your model to explore more or exploit more? (explore/exploit):")
+user_input = input(" if a model already exists in your directory, it will be used. if not a new model will automatically be created. Do you want your model to explore or exploit? (explore/exploit):")
 
 #setting this to true will make the model explore more, setting it to false will make the model exploit more
 training_old_model = user_input.lower() == 'exploit'
@@ -280,10 +280,22 @@ class ReplayBuffer:
     def size(self):
         return len(self.buffer)
 
+
+
 def train_model(model, replay_buffer, batch_size, gamma):
     if replay_buffer.size() < batch_size:
         return  # Not enough samples for training
-
+#/////////////////////READ BELOW/////////////////////////////
+    #OK there is a lot going on here.
+        #each entry in the replay buffer is a MDP (markov decision process)
+        #which is made up of a state, action, reward, next state, and done (done checks for terminal state)
+        #so what we are doing here is taking a random sample of MDPs from the replay buffer
+        # and then we are training the model to accociate the action taken at a givin state with the reward
+        # that taking that action gives. if the reward is posative, the model will learn to WEIGH taking 
+        # that action more highly in the future if it finds itself in the same state
+        # if the reward is negative, the model will learn to weigh taking that action lower in the future when
+        # it finds itself in the same state.
+#//////////////////////READ ABOVE//////////////////////////// 
     minibatch = replay_buffer.sample(batch_size)
     for state, action, reward, next_state, done in minibatch:
         target = reward
@@ -291,11 +303,10 @@ def train_model(model, replay_buffer, batch_size, gamma):
         target_f[0][action] = target
         model.fit(state.reshape(1, -1), target_f, epochs=1)
 
-# Initialize particle list and object
-# Initialize particle list with initial force towards the object
+# Initialize particle list
 particle_list = []
 for _ in range(n_particles):
-    # Random position for each particle
+    #initalize the particle at the same spot every time when the simulation starts
     position = np.array([WIDTH // 5, WIDTH // 5])
 
     # Direction from particle to object
@@ -311,12 +322,7 @@ for _ in range(n_particles):
 def calculate_reward(particle_list,
     object,
     target_pos,
-    start_time, current_time, 
-    collision_occurred_with_object,
-    collision_occurred_between_particles,
-    particle_distances_to_object,
-    dela_distance_particle_object,
-    previous_distance_to_target,
+    previous_distance_object_target,
     delta_particle_distance_to_object):
 
 
@@ -324,19 +330,20 @@ def calculate_reward(particle_list,
     distance_from_object_to_target = np.linalg.norm(object.position - target_pos)
 
     #change in disctnace between object and target
-    delta_distance_to_target = previous_distance_to_target - distance_from_object_to_target
+    delta_distance_from_object_to_target = previous_distance_object_target - distance_from_object_to_target
 
     #setting the new distance as the old distance to recalculate for the next loop
-    previous_distance_to_target = distance_from_object_to_target
+    previous_distance_object_target = distance_from_object_to_target
 
-    #if delta_distance_to_target is negative, we are closer to the target and want to reward our model
-    #reward = (delta_distance_to_target)*10
+    #we want to reward any action that moves the object closer o the target, 
+    # and punish any action that moves the object away from the target    
+    reward = -delta_distance_from_object_to_target*100
     
-    #currently reward will be posative if the particle moves closer to the object (as a function of how close 
-    # it moves to the object), and negative if it hits a wall.
-    
-    reward = delta_particle_distance_to_object*10
+    #we also want to reward any action that moves the particle closer to the object,
+    #and punish any action that moves the particle away from the object
+    reward += delta_particle_distance_to_object*10
 
+    #we want to punish any action that causes the particle hit the wall
     if particle_list[0].hit_wall == True:
         reward = -1000
 
@@ -356,13 +363,13 @@ collision_occurred_between_particles = False
 
 #Initialize replay buffer
 replay_buffer = ReplayBuffer(capacity=50000)
-batch_size = 10
+batch_size = 120 #setting batch size to 120 becasue the size of the batches generated in one training sycle is 120.
 
 # Initialize last chosen action
 last_action = np.zeros(action_size)
 
-# Initialize previous_distance_to_target and particle distance to object
-previous_distance_to_target = np.linalg.norm(object_pos - target_pos)
+# Initialize previous_distance_object_target and particle distance to object
+previous_distance_object_target = np.linalg.norm(object_pos - target_pos)
 previous_particle_distance_to_object = np.linalg.norm(particle_list[0].position - object.position)
 
 # Define the maximum duration for a successful run (in milliseconds)
@@ -424,18 +431,10 @@ while running:
                 action = np.argmax(action_probs)
         else:
 #/////////////////////READ BELOW/////////////////////////////
-            #even if we start with a trained model, we STILL want SOME 
-            #schochasticity to play a role in the choices we make, so that our model will explore 
-            #and continue to learn. but becasue we are using a model that has already 
-            #been trained in the past, we want to explore less and exploit more. 
-            #so we will scale down epsilon when we are using a prevoiusly trained model.
-            #dividing epsolon by 2 doubles the chance that we will exploit instead of explore.
-            #technically this is a hyperparameter that we can tune, but at this point there
-            #are so many hyperparamaters that I need to hold some of them constent.
+            #if the user has told us to exploit, then the 
+            #actions taken will ALWAYS be based on what the model 
+            #predicts and will never explore, it will still learn from the actions it takes
 #//////////////////////READ ABOVE////////////////////////////
-            if np.random.rand() <= epsilon/2:
-                action = np.random.choice([0, 1, 2, 3])  # Random action
-            else:
                 action_probs = model.predict(state_list[0].reshape(1, -1)).flatten()
                 action = np.argmax(action_probs)
 
@@ -481,20 +480,13 @@ while running:
     reward= reward + calculate_reward(particle_list,
     object,
     target_pos,
-    start_time, current_time, 
-    collision_occurred_with_object,
-    collision_occurred_between_particles,
-    particle_distances_to_object,
-    dela_distance_particle_object,
-    previous_distance_to_target,
+    previous_distance_object_target,
     delta_particle_distance_to_object)
 
 
-    # Update previous_particle_distances for the next iteration
-    #no longer needed becasue we are saving particledistances as a list
-     #reward moving closer to the target:
+    # now that reward is calculated, set the current distance between the particle and the object my new previous distance
     previous_particle_distance_to_object = particle_distance_to_object
-    #set my current distance as my new previous distance
+    
     
     if visualize:
         pygame.draw.rect(screen, BLACK, (0, 0, WIDTH, HEIGHT), 2)
@@ -513,7 +505,6 @@ while running:
     done = np.linalg.norm(object.position - target_pos) < (object_radius + target_radius)
 
     # Store experience in the replay buffer, we want to do this the frame RIGHT BEFORE we take a new action.
-    #this is the second part of our agent (essentally)
     if frame_counter == actionFrame + action_selection_frequency:
         #the below line gets us the state that the action we took action_selection_frequency ago TOOK us to
         state_list.append(get_state(particle_list, object, target_pos))
