@@ -74,8 +74,8 @@ collision_occurred = False
 
 # Define the neural network for RL. 
 #the important things that we've learned about building networks is:
-#1) make sure that the input layor is the same size as the state size
-#2) make sure that the output layer is the same size as the action size
+#1) make sure that the input layor is the same size as the state space size
+#2) make sure that the output layer is the same size as the action space
 #3) MSE is the bess loss function for RL problems
 #4) apparently the size of the dense layors in ones deep Q network shouls be between the size of the input and 
 #   the size of the output layors, so I chose 6.
