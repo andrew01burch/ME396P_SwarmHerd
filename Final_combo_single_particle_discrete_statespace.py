@@ -58,8 +58,8 @@ epsilon_decay = 0.995  # Exponential decay rate for exploration prob
 # Hyperparameters
 n_particles = 1 #the this exersise, we will have the agent control only 1 particle
 friction_coefficient = -0.05
-state_size = n_particles * 2  # position and velocity for each particle
-action_size = n_particles * 4  # 2D force vector for each particle
+state_size = n_particles * 2  # state of a particle is its position, which is 2 values.
+action_size = n_particles * 8  #each particle can take 8 possible actions, so the action size is 8
 learning_rate = 0.005
 gamma = 0.99  # Discount factor for future rewards
 action_selection_frequency = 50  # Number of frames to wait before selecting a new action
@@ -196,22 +196,43 @@ def get_state(particle_list, object, target_pos):
 # Function to apply actions to the particles
 def apply_actions(action, particle_list):
     force_magnitude = 1.0  # Adjust this value as needed
+    diag_force_magnitude = np.sqrt(force_magnitude * 2)
+
     for particle in particle_list:
-        if action == 0:  # Up
+        if action == 0:  # north
             particle.force = np.array([0, -force_magnitude])
             print(f"N")
 
-        elif action == 1:  # Down
+        elif action == 1:  # south
             particle.force = np.array([0, force_magnitude])
             print(f"S")
 
-        elif action == 2:  # Left
+        elif action == 2:  # west
             particle.force = np.array([-force_magnitude, 0])
             print(f"W")
 
-        elif action == 3:  # Right
+        elif action == 3:  # east
             particle.force = np.array([force_magnitude, 0])
             print(f"E")
+
+        elif action == 4: #northwest
+            particle.force = np.array([-diag_force_magnitude, -diag_force_magnitude])
+            print(f"NW")
+        
+        elif action == 5: #northeast
+            particle.force = np.array([diag_force_magnitude, -diag_force_magnitude])
+            print(f"NE")
+        
+        elif action == 6: #southwest
+            particle.force = np.array([-diag_force_magnitude, diag_force_magnitude])
+            print(f"SW")
+        
+        elif action == 7: #southeast
+            particle.force = np.array([diag_force_magnitude, diag_force_magnitude])
+            print(f"SE")
+
+        
+
 
 # Reward function emphasizing time and total movement
 
@@ -259,8 +280,6 @@ def train_model(model, replay_buffer, batch_size, gamma):
     minibatch = replay_buffer.sample(batch_size)
     for state, action, reward, next_state, done in minibatch:
         target = reward
-        # if not done:
-        #     target = (reward + gamma * np.amax(model.predict(next_state.reshape(1, -1), verbose = 0)[0]))
         target_f = model.predict(state.reshape(1, -1), verbose = 0)
         target_f[0][action] = target
         model.fit(state.reshape(1, -1), target_f, epochs=1)
