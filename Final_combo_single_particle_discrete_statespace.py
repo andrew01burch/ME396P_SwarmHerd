@@ -22,7 +22,7 @@ user_input = input("Do you want to visualize? (yes/no):")
 visualize = user_input.lower() == 'yes'
 
 #ask user if they want the model to train more or exploit more
-user_input = input("Do you want your model to explore more or exploit more? (explore/exploit):")
+user_input = input(" if a model already exists in your directory, it will be used. if not a new model will automatically be created. Do you want your model to explore more or exploit more? (explore/exploit):")
 
 #setting this to true will make the model explore more, setting it to false will make the model exploit more
 training_old_model = user_input.lower() == 'exploit'
@@ -77,14 +77,16 @@ collision_occurred = False
 #1) make sure that the input layor is the same size as the state size
 #2) make sure that the output layer is the same size as the action size
 #3) MSE is the bess loss function for RL problems
+#4) apparently the size of the dense layors in ones deep Q network shouls be between the size of the input and 
+#   the size of the output layors, so I chose 6.
 def build_model(state_size, action_size):
     model = Sequential([
         Flatten(input_shape=(state_size,)),
-        (Dense(24, activation='relu')),
-        (Dense(24, activation='relu')),
+        (Dense(6, activation='relu')),
+        (Dense(6, activation='relu')),
         (Dense(action_size, activation='linear'))
     ])
-    model.compile(loss='mse', optimizer=Adam(learning_rate))
+    model.compile(loss='mse', optimizer=Adam(learning_rate=learning_rate))
     return model
 
 
@@ -198,7 +200,7 @@ def get_state(particle_list, object, target_pos):
     state = np.floor(state)
     return state
 
-# Function to apply actions to the particles
+# Function to apply the action chosen to the particle
 def apply_actions(action, particle_list):
     force_magnitude = 1.0  # Adjust this value as needed
     diag_force_magnitude = np.sqrt(force_magnitude * 2)
@@ -330,9 +332,13 @@ def calculate_reward(particle_list,
     #if delta_distance_to_target is negative, we are closer to the target and want to reward our model
     #reward = (delta_distance_to_target)*10
     
-    #right now the ONLY thing that affects reward is how an action effects the distance between the particle and the obejct.
-    #this is not ideal, but for now I want to show that I have a model that commands the particle to move tword the object.
+    #currently reward will be posative if the particle moves closer to the object (as a function of how close 
+    # it moves to the object), and negative if it hits a wall.
+    
     reward = delta_particle_distance_to_object*10
+
+    if particle_list[0].hit_wall == True:
+        reward = -1000
 
 
     #print(reward)
@@ -408,7 +414,7 @@ while running:
 #//////////////////////READ ABOVE////////////////////////////
         if training_old_model == False:
             if np.random.rand() <= epsilon:
-                action = np.random.choice([0, 1, 2, 3])  # Random action
+                action = np.random.choice([0, 1, 2, 3, 4, 5, 6, 7])  # Random action
             else:
                 #what this does is asks the model "givin the state I am in, what is the action with the
                 # highest probability of being the best action?" and then the model returns a vector
