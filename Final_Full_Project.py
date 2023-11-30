@@ -325,7 +325,7 @@ for _ in range(n_particles):
 def calculate_reward(particle_list,
     delta_distance_object_target,
     delta_particle_distance_to_object):
-
+#//////////READ BELOW/////////////////////////////
     #we want to reward any action that moves the object closer o the target, 
     # and punish any action that moves the object away from the target. this is 
     #much more important than the particle distance to the object in the context of the 
@@ -341,7 +341,7 @@ def calculate_reward(particle_list,
     if particle_list[0].hit_wall == True:
         reward = -1000
 
-
+#//////////READ ABOVE/////////////////////////////
     return reward
 
 
@@ -407,7 +407,6 @@ while running:
             #TLDR: we EXPLORE when we need to learn our system for data, and we EXPLOIT when we have learned a
             #policy that should be in the ballpark of preforming well.
             #essentally, the below statement is the decision-maker component of our agent.
-#//////////////////////READ ABOVE////////////////////////////
         if training_old_model == False:
             if np.random.rand() <= epsilon:
                 action = np.random.choice([0, 1, 2, 3, 4, 5, 6, 7])  # Random action
@@ -419,7 +418,6 @@ while running:
                 action_probs = model.predict(state_list[0].reshape(1, -1)).flatten()
                 action = np.argmax(action_probs)
         else:
-#/////////////////////READ BELOW/////////////////////////////
             #if the user has told us to exploit, then the 
             #actions taken will ALWAYS be based on what the model 
             #predicts and will never explore, it will still learn from the actions it takes
@@ -470,7 +468,8 @@ while running:
     delta_distance_object_target,
     delta_particle_distance_to_object)
 
-    #this should prevent the negative reward of hitting the wall from overpowering the posative reward
+    #this statement below prevents the negative reward of hitting the wall from overpowering 
+    #the posative rewards
     if reward < -1000:
         reward = -1000
 
@@ -506,6 +505,7 @@ while running:
         state_list.clear()
         #only need to store the state before a taken action, and the state after a taken action, so we clear statelist after adding the pair of states to the replay buffer
         print(reward)
+        print("///////////////////////////////////////////////////////////////////")
         reward = 0 #reset reward after adding to the replay buffer so we can calculate the reward for the next action
 
     # Train the model
