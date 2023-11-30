@@ -79,8 +79,8 @@ collision_occurred = False
 def build_model(state_size, action_size):
     model = Sequential([
         Flatten(input_shape=(state_size,)),
-        (Dense(4, activation='relu')),
-        #(Dense(4, activation='relu')), I r
+        (Dense(32, activation='relu')),
+        (Dense(32, activation='relu')),
         (Dense(action_size, activation='linear'))
     ])
     model.compile(loss='mse', optimizer=Adam())
