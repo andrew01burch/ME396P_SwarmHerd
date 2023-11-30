@@ -12,7 +12,7 @@ Additionally, we may expand into looking at constrained agents for additional un
 
 ////FOLLOWING ARE THE NOTES FOR THE TA/INSTRUCTOR READING THIS FOR GRADING//////
 
-Included are 2 files; the first is an example of the training simulation environment we have developed (sim_trial2.py). The mouse is treated as a particle and can be moved around the space to collide with other particles. This showcases the environment, which can be thought of behaving like an ice rink, and the particles like hockey pucks that elastically collide with each other (as in, the physics we have developed match this idea).
+Included are 2 files; the first is an example of the training simulation environment we have developed (sim_trial2.py). The mouse is treated as a particle and can be moved around the space to collide with other particles. This showcases the environment, which can be thought of behaving like an ice rink, and the particles like hockey pucks that elastically collide with each other (as in, the physics we have developed match this idea). The particles experience friction as they slide around in the space. We use proper Newtonian collision physics; the particles have a mass, and the coefficient of restitution of all these collisions is 1.
 
 The second file (called Final_Full_Project.py) contains the full program that creates, simulates, and trains an RL model to try to solve the game of moving the blue object onto the green target by pushing a smaller particle into the object. There is a lot going on in this file, and it is heavily commented to help lead the viewer through what is happening. There are some sections of comments that explain crucial parts about the RL process and how it is implemented in the code, and those are sectioned off with /////read below///// and /////read above//////.
 
@@ -20,7 +20,7 @@ HOW TO USE:
 1) Run Final_full_Project.py
 2) When prompted, select yes/no to display the game (simulation runs much slower with the game shown)
 3) When prompted, select explore/exploit to pick an exploratory stochastic policy (use for training) or an exploitative policy based on the predictions made by the model (used for validation). Picking explore will slowly over the cycle of the simulation begin to exploit the model's predictions as it trains.
-4) After 10 training simulation iterations, the program will conclude. A model will automatically be saved and will automatically be reused and further trained the next time you run the Final-Full_project.py file.
+4) After 10 training simulation iterations, the program will conclude. A model will automatically be saved and will automatically be reused and further trained the next time you run the Final_Full_project.py file.
 5) Understanding what is printed out. Below is a snippet of what is printed out while the simulation is running:
 
 ////////////////////////////////////////////////////////////////////
