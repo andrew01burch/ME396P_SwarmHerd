@@ -2,7 +2,7 @@ import pygame
 import numpy as np
 import tensorflow as tf  # Import TensorFlow
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Flatten
+from tensorflow.keras.layers import Dense, Flatten, Dropout
 from tensorflow.keras.optimizers import Adam
 
 from collections import deque
@@ -74,13 +74,14 @@ collision_occurred = False
 #1) make sure that the input layor is the same size as the state space size
 #2) make sure that the output layer is the same size as the action space
 #3) MSE is the bess loss function for RL problems
-#4) apparently the size of the dense layors in ones deep Q network shouls be between the size of the input and 
-#   the size of the output layors, so I chose 6.
+#4) There are some papers on how to choose the dimentonality of your network (the size of the hidden layers)
+    #but i dont understand them yet, so I just chose 128 for the hidden layers, any smaller and the model was
+    #underfitting.
 def build_model(state_size, action_size):
     model = Sequential([
         Flatten(input_shape=(state_size,)),
-        (Dense(32, activation='relu')),
-        (Dense(32, activation='relu')),
+        (Dense(128, activation='relu')),
+        (Dense(128, activation='relu')),
         (Dense(action_size, activation='linear'))
     ])
     model.compile(loss='mse', optimizer=Adam())
@@ -309,7 +310,7 @@ def train_model(model, replay_buffer, batch_size, gamma):
 particle_list = []
 for _ in range(n_particles):
     #initalize the particle at the same spot every time when the simulation starts
-    position = np.array([WIDTH // 5, WIDTH // 5])
+    position = np.array([np.random.uniform(0, WIDTH), np.random.uniform(0, HEIGHT)], dtype=float)
 
     # Direction from particle to object
     direction_to_object = object_pos - position
@@ -468,6 +469,10 @@ while running:
     reward= reward + calculate_reward(particle_list,
     delta_distance_object_target,
     delta_particle_distance_to_object)
+
+    #this should prevent the negative reward of hitting the wall from overpowering the posative reward
+    if reward < -1000:
+        reward = -1000
 
 
     # now that reward is calculated, set the current distance between the particle and the object my new previous distance
