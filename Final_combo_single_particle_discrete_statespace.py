@@ -72,9 +72,6 @@ training_old_model = False
 #1) make sure that the input layor is the same size as the state size
 #2) make sure that the output layer is the same size as the action size
 #3) MSE is the bess loss function for RL problems
-#4) we can squash the outputs of the network to be values between -1 and 1 with a tanh activation function on the output layor
-    #note we dont do that at this point.
-#5) you want the amount of neurons in dense layors to be between the input and output size, but this is not a hard rule
 def build_model(state_size, action_size):
     model = Sequential([
         Flatten(input_shape=(state_size,)),
@@ -190,7 +187,10 @@ def get_state(particle_list, object, target_pos):
     # WILL BE the same state, so the model will have seen that going up is the right choice at that state before,
     # and hopefully will make the same choice again.
 #//////////////////////READ ABOVE////////////////////////////
-    state = np.array[((particle_list[0].position[0] - 0) / (800 - 0)) * 40, ((particle_list[0].position[1] - 0) / (600 - 0)) * 30]
+    state = np.array([(particle_list[0].position[0] - 0) / (800 - 0) * 40, (particle_list[0].position[1] - 0) / (600 - 0) * 30])
+    
+    #this chops off the decimal places so we finish our discritization
+    state = np.floor(state)
     return state
 
 # Function to apply actions to the particles
