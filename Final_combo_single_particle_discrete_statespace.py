@@ -279,8 +279,6 @@ class ReplayBuffer:
 
 
 def train_model(model, replay_buffer, batch_size, gamma):
-    if replay_buffer.size() < batch_size:
-        return  # Not enough samples for training
 #/////////////////////READ BELOW/////////////////////////////
     #OK there is a lot going on here.
         #each entry in the replay buffer is a MDP (markov decision process)
@@ -292,12 +290,15 @@ def train_model(model, replay_buffer, batch_size, gamma):
         # if the reward is negative, the model will learn to weigh taking that action lower in the future when
         # it finds itself in the same state.
 #//////////////////////READ ABOVE//////////////////////////// 
-    minibatch = replay_buffer.sample(batch_size)
-    for state, action, reward, next_state, done in minibatch:
+    for state, action, reward, next_state, done in replay_buffer:
         target = reward
         target_f = model.predict(state.reshape(1, -1), verbose = 0)
         target_f[0][action] = target
         model.fit(state.reshape(1, -1), target_f, epochs=1)
+
+    replay_buffer.clear()
+    #clear the replay buffer after training so we dont train on the same experiences twice
+    
 
 # Initialize particle list
 particle_list = []
